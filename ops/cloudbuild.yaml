@@ -1,0 +1,207 @@
+# Cloud Build configuration for Project Agent
+
+steps:
+  # Build Python services
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA', './services/api/chat']
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA', './services/api/inventory']
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA', './services/api/documents']
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA', './services/api/admin']
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA', './services/workers/ingestion']
+    dir: '.'
+
+  # Build Next.js web portal
+  - name: 'node:18'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd web/portal
+        npm ci
+        npm run build
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA', './web/portal']
+    dir: '.'
+
+  # Push images to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-chat-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8081'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-inventory-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8082'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-documents-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8083'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-admin-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8084'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-ingestion-worker'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--no-allow-unauthenticated'
+      - '--port'
+      - '8080'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--max-instances'
+      - '5'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-web'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '3000'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+
+# Build options
+options:
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: 100
+
+# Timeout
+timeout: '1200s'
+
+# Images to store in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA'
