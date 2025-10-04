@@ -7,15 +7,28 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY ../../pyproject.toml ./
-RUN pip install --no-cache-dir uv && uv pip install --system -e .
+# Install Python dependencies directly
+RUN pip install --no-cache-dir \
+    fastapi==0.104.1 \
+    uvicorn==0.24.0 \
+    google-cloud-firestore==2.13.1 \
+    google-cloud-storage==2.10.0 \
+    google-cloud-pubsub==2.18.4 \
+    google-auth==2.23.4 \
+    google-auth-oauthlib==1.1.0 \
+    google-auth-httplib2==0.1.1 \
+    google-api-python-client==2.108.0 \
+    pydantic==2.5.0 \
+    python-multipart==0.0.6 \
+    requests==2.32.5 \
+    PyJWT==2.8.0
 
-# Copy application code
-COPY . .
+# Copy the entire project structure
+COPY packages ./packages
+COPY services/api/admin ./
 
 # Expose port
 EXPOSE 8084
 
 # Run the application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8084"]
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8084}"]

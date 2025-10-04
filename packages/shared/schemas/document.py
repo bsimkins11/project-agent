@@ -9,7 +9,9 @@ from datetime import datetime
 class DocumentStatus(str, Enum):
     """Document processing status."""
     UPLOADED = "uploaded"
-    APPROVED = "approved"
+    PENDING_ACCESS = "pending_access"
+    ACCESS_APPROVED = "access_approved"
+    PROCESSED = "processed"
     INDEXED = "indexed"
     QUARANTINED = "quarantined"
     FAILED = "failed"
@@ -42,22 +44,45 @@ class EmbeddingInfo(BaseModel):
 
 class DocumentMetadata(BaseModel):
     """Document metadata stored in Firestore."""
-    doc_id: str = Field(..., description="Unique document identifier")
-    media_type: MediaType = Field(..., description="Document media type")
-    doc_type: DocType = Field(..., description="Document type classification")
+    id: str = Field(..., description="Unique document identifier")
     title: str = Field(..., description="Document title")
+    type: str = Field(..., description="Document type (PDF, DOCX, etc.)")
+    size: int = Field(..., description="File size in bytes")
     uri: str = Field(..., description="GCS URI for document file")
-    source_ref: str = Field(..., description="Source reference (Drive fileId, etc.)")
-    status: DocumentStatus = Field(..., description="Processing status")
+    status: str = Field(..., description="Processing status")
+    upload_date: Optional[str] = Field(None, description="Upload date")
+    processing_result: Optional[Dict[str, Any]] = Field(None, description="Document AI processing results")
+    
+    # Optional fields for full implementation
+    media_type: Optional[MediaType] = Field(None, description="Document media type")
+    doc_type: Optional[DocType] = Field(None, description="Document type classification")
+    source_ref: Optional[str] = Field(None, description="Source reference (Drive fileId, etc.)")
     required_fields_ok: bool = Field(default=True, description="Required fields validation")
-    dlp_scan: DLPFindings = Field(..., description="DLP scan results")
+    dlp_scan: Optional[DLPFindings] = Field(None, description="DLP scan results")
     thumbnails: List[str] = Field(default_factory=list, description="GCS URIs for thumbnails (images only)")
-    embeddings: EmbeddingInfo = Field(..., description="Embedding information")
-    created_by: str = Field(..., description="Creator email")
+    embeddings: Optional[EmbeddingInfo] = Field(None, description="Embedding information")
+    created_by: Optional[str] = Field(None, description="Creator email")
     approved_by: List[str] = Field(default_factory=list, description="Approver emails")
     topics: List[str] = Field(default_factory=list, description="Document topics/tags")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    created_at: Optional[datetime] = Field(None, description="Creation timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+    
+    # Permission and access control fields
+    permission_requested: bool = Field(default=False, description="Whether permission has been requested")
+    permission_granted: bool = Field(default=False, description="Whether permission has been granted")
+    permission_requested_at: Optional[datetime] = Field(None, description="When permission was requested")
+    permission_granted_at: Optional[datetime] = Field(None, description="When permission was granted")
+    drive_file_id: Optional[str] = Field(None, description="Google Drive file ID if applicable")
+    requires_permission: bool = Field(default=False, description="Whether document requires permission access")
+    
+    # Access request fields for comprehensive workflow
+    access_requested: bool = Field(default=False, description="Whether access has been requested")
+    access_granted: bool = Field(default=False, description="Whether access has been granted")
+    access_requested_at: Optional[datetime] = Field(None, description="When access was requested")
+    access_granted_at: Optional[datetime] = Field(None, description="When access was granted")
+    access_request_id: Optional[str] = Field(None, description="Unique access request identifier")
+    index_source_id: Optional[str] = Field(None, description="ID of the document index this document came from")
+    bulk_access_request: bool = Field(default=False, description="Whether this is part of a bulk access request")
 
 
 class Document(BaseModel):

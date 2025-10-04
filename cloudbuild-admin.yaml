@@ -1,0 +1,5 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/api/admin/Dockerfile', '-t', 'gcr.io/transparent-agent-test/project-agent-admin-api:latest', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/transparent-agent-test/project-agent-admin-api:latest']
