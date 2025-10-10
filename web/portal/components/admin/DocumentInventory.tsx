@@ -357,8 +357,26 @@ export default function DocumentInventory() {
                   </button>
                   
                   {/* Page numbers */}
-                  {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+                  {Array.from({ length: pagination.total_pages }, (_, i) => {
                     const pageNum = i + 1;
+                    
+                    // Show first 3 pages, last 3 pages, and current page with neighbors
+                    const shouldShow = 
+                      pageNum <= 3 || // First 3 pages
+                      pageNum > pagination.total_pages - 3 || // Last 3 pages
+                      Math.abs(pageNum - pagination.page) <= 1; // Current page ± 1
+                    
+                    if (!shouldShow) {
+                      // Show ellipsis
+                      if (pageNum === 4 && pagination.page > 5) {
+                        return <span key={pageNum} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                      }
+                      if (pageNum === pagination.total_pages - 3 && pagination.page < pagination.total_pages - 4) {
+                        return <span key={pageNum} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">...</span>
+                      }
+                      return null;
+                    }
+                    
                     const isCurrentPage = pageNum === pagination.page;
                     return (
                       <button
