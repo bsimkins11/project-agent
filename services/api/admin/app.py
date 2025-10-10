@@ -1762,31 +1762,68 @@ async def get_inventory(
             
             all_docs.append(doc_data)
         
-        # Sort documents
+        # Sort documents with robust handling of different types
         reverse = sort_order == "desc"
-        all_docs.sort(key=lambda x: x.get(sort_by, ""), reverse=reverse)
+        
+        def safe_sort_key(doc):
+            """Safe sort key that handles different data types."""
+            value = doc.get(sort_by)
+            
+            # Handle datetime objects
+            if isinstance(value, datetime):
+                return value.isoformat()
+            
+            # Handle None or empty
+            if value is None or value == "":
+                return "0000-00-00" if sort_by == "created_at" else ""
+            
+            # Convert to string for consistent sorting
+            return str(value)
+        
+        try:
+            all_docs.sort(key=safe_sort_key, reverse=reverse)
+        except Exception as e:
+            logger.warning(f"Sort failed, using default order: {e}")
+            # Fallback: sort by document ID if sort fails
+            all_docs.sort(key=lambda x: x.get("id", ""), reverse=True)
         
         # Apply pagination
         total = len(all_docs)
         start_idx = (page - 1) * page_size
-        end_idx = start_idx + page_size
+        end_idx = min(start_idx + page_size, total)  # Ensure we don't exceed total
         paginated_docs = all_docs[start_idx:end_idx]
         
-        # Convert to inventory items
+        logger.info(f"Pagination: page={page}, total={total}, start={start_idx}, end={end_idx}, items={len(paginated_docs)}")
+        
+        # Convert to inventory items with error handling
         items = []
         for doc in paginated_docs:
-            item = InventoryItem(
-                doc_id=doc["id"],
-                title=doc.get("title", "Untitled"),
-                doc_type=doc.get("doc_type", "misc"),
-                media_type=doc.get("media_type", "document"),
-                status=doc.get("status", "uploaded"),
-                created_by=doc.get("created_by", "unknown"),
-                created_at=doc.get("created_at", datetime.now()).isoformat() if isinstance(doc.get("created_at"), datetime) else str(doc.get("created_at", "")),
-                topics=doc.get("topics", []),
-                thumbnail=doc.get("thumbnails", {}).get("small") if doc.get("thumbnails") else None
-            )
-            items.append(item)
+            try:
+                # Ensure created_at is in proper format
+                created_at_value = doc.get("created_at")
+                if isinstance(created_at_value, datetime):
+                    created_at_str = created_at_value.isoformat()
+                elif created_at_value:
+                    created_at_str = str(created_at_value)
+                else:
+                    created_at_str = datetime.now().isoformat()
+                
+                item = InventoryItem(
+                    doc_id=doc.get("id", "unknown"),
+                    title=doc.get("title", "Untitled"),
+                    doc_type=doc.get("doc_type", "misc"),
+                    media_type=doc.get("media_type", "document"),
+                    status=doc.get("status", "uploaded"),
+                    created_by=doc.get("created_by", "unknown"),
+                    created_at=created_at_str,
+                    topics=doc.get("topics", []) if isinstance(doc.get("topics"), list) else [],
+                    thumbnail=doc.get("thumbnails", {}).get("small") if isinstance(doc.get("thumbnails"), dict) else None
+                )
+                items.append(item)
+            except Exception as e:
+                logger.error(f"Error converting document {doc.get('id', 'unknown')} to InventoryItem: {e}")
+                # Skip this document but continue processing others
+                continue
         
         total_pages = (total + page_size - 1) // page_size
         
