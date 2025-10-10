@@ -1,0 +1,43 @@
+# Cloud Build configuration for Inventory API service
+
+steps:
+  # Build inventory API service
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/api/inventory/Dockerfile', '-t', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest', '.']
+    dir: '.'
+
+  # Push image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-inventory-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8082'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'GCP_PROJECT=$PROJECT_ID,REGION=us-central1,GCS_DOC_BUCKET=ta-test-docs-uat,GCS_THUMB_BUCKET=ta-test-thumbs-uat,FIRESTORE_DB=(default),NODE_ENV=production'
+
+# Images to store in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest'
+
+# Timeout
+timeout: '600s'

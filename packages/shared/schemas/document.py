@@ -7,14 +7,28 @@ from datetime import datetime
 
 
 class DocumentStatus(str, Enum):
-    """Document processing status."""
-    UPLOADED = "uploaded"
-    PENDING_ACCESS = "pending_access"
-    ACCESS_APPROVED = "access_approved"
-    PROCESSED = "processed"
-    INDEXED = "indexed"
-    QUARANTINED = "quarantined"
-    FAILED = "failed"
+    """Document processing status - logical workflow progression."""
+    
+    # === INITIAL UPLOAD PHASE ===
+    UPLOADED = "uploaded"  # Document uploaded, awaiting admin review
+    
+    # === ACCESS REQUEST PHASE (for Google Drive documents) ===
+    REQUEST_ACCESS = "request_access"  # Admin needs to request access to Drive document
+    ACCESS_REQUESTED = "access_requested"  # Access request sent to document owner
+    ACCESS_GRANTED = "access_granted"  # Document owner granted access
+    
+    # === APPROVAL PHASE ===
+    AWAITING_APPROVAL = "awaiting_approval"  # Ready for admin approval (visible in approval queue)
+    APPROVED = "approved"  # Admin approved - document now visible to users in library
+    
+    # === PROCESSING PHASE (for AI/Chat functionality) ===
+    PROCESSING_REQUESTED = "processing_requested"  # Admin requested AI processing
+    PROCESSING = "processing"  # Currently being vectorized/processed
+    PROCESSED = "processed"  # Fully processed and available for AI chat
+    
+    # === ERROR STATES ===
+    QUARANTINED = "quarantined"  # Removed from system due to policy violations
+    FAILED = "failed"  # Processing failed, needs attention
 
 
 class MediaType(str, Enum):
@@ -57,6 +71,7 @@ class DocumentMetadata(BaseModel):
     media_type: Optional[MediaType] = Field(None, description="Document media type")
     doc_type: Optional[DocType] = Field(None, description="Document type classification")
     source_ref: Optional[str] = Field(None, description="Source reference (Drive fileId, etc.)")
+    source_uri: Optional[str] = Field(None, description="Source URI (original document link, etc.)")
     required_fields_ok: bool = Field(default=True, description="Required fields validation")
     dlp_scan: Optional[DLPFindings] = Field(None, description="DLP scan results")
     thumbnails: List[str] = Field(default_factory=list, description="GCS URIs for thumbnails (images only)")
@@ -74,6 +89,23 @@ class DocumentMetadata(BaseModel):
     permission_granted_at: Optional[datetime] = Field(None, description="When permission was granted")
     drive_file_id: Optional[str] = Field(None, description="Google Drive file ID if applicable")
     requires_permission: bool = Field(default=False, description="Whether document requires permission access")
+    
+    # Document metadata fields for project tracking
+    sow_number: Optional[str] = Field(None, description="Statement of Work number")
+    deliverable: Optional[str] = Field(None, description="Deliverable description")
+    responsible_party: Optional[str] = Field(None, description="Person or team responsible")
+    deliverable_id: Optional[str] = Field(None, description="Deliverable identifier")
+    link: Optional[str] = Field(None, description="External link to document")
+    notes: Optional[str] = Field(None, description="Additional notes or comments")
+    web_view_link: Optional[str] = Field(None, description="Web view link for Google Drive documents")
+    
+    # Google Sheets and Drive specific fields
+    sheet_name: Optional[str] = Field(None, description="Google Sheets sheet name if applicable")
+    sheet_gid: Optional[str] = Field(None, description="Google Sheets sheet GID if applicable")
+    from_sheet_index: bool = Field(default=False, description="Whether document came from a sheet index")
+    sheet_index_id: Optional[str] = Field(None, description="ID of the sheet index this document came from")
+    drive_file_type: Optional[str] = Field(None, description="Google Drive file type (document, spreadsheet, etc.)")
+    is_document_index: bool = Field(default=False, description="Whether this is a document index itself")
     
     # Access request fields for comprehensive workflow
     access_requested: bool = Field(default=False, description="Whether access has been requested")

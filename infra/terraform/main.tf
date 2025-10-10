@@ -45,7 +45,6 @@ resource "google_project_service" "required_apis" {
     "pubsub.googleapis.com",
     "cloudscheduler.googleapis.com",
     "secretmanager.googleapis.com",
-    "identityplatform.googleapis.com",
     "drive.googleapis.com",
     "sheets.googleapis.com",
     "cloudbuild.googleapis.com",
@@ -62,7 +61,7 @@ resource "google_project_service" "required_apis" {
 # Cloud Storage buckets
 resource "google_storage_bucket" "documents" {
   name          = "ta-test-docs-${var.environment}"
-  location      = "US"
+  location      = "US-CENTRAL1"
   force_destroy = true
 
   versioning {
@@ -83,7 +82,7 @@ resource "google_storage_bucket" "documents" {
 
 resource "google_storage_bucket" "thumbnails" {
   name          = "ta-test-thumbs-${var.environment}"
-  location      = "US"
+  location      = "US-CENTRAL1"
   force_destroy = true
 
   versioning {
@@ -177,29 +176,25 @@ resource "google_project_iam_member" "ingestor_vision_user" {
   member  = "serviceAccount:${google_service_account.ingestor.email}"
 }
 
-# Identity Platform configuration
-resource "google_identity_platform_config" "default" {
-  project = var.project_id
-
-  sign_in {
-    allow_duplicate_emails = false
-  }
-
-  sign_in {
-    email {
-      enabled           = true
-      password_required = false
-    }
-  }
-
-  sign_in {
-    anonymous {
-      enabled = false
-    }
-  }
-
-  depends_on = [google_project_service.required_apis]
-}
+# Identity Platform configuration - disabled for now due to permissions
+# resource "google_identity_platform_config" "default" {
+#   project = var.project_id
+#
+#   sign_in {
+#     allow_duplicate_emails = false
+#     
+#     email {
+#       enabled           = true
+#       password_required = false
+#     }
+#     
+#     anonymous {
+#       enabled = false
+#     }
+#   }
+#
+#   depends_on = [google_project_service.required_apis]
+# }
 
 # Vertex AI Vector Search index
 resource "google_vertex_ai_index" "vector_search" {

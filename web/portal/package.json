@@ -1,7 +1,7 @@
 {
-  "name": "project-agent-portal",
+  "name": "project-deliverable-agent-portal",
   "version": "1.0.0",
-  "description": "Project Agent web portal",
+  "description": "Project Deliverable Agent web portal",
   "private": true,
   "scripts": {
     "dev": "next dev",

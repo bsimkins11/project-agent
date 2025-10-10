@@ -1,14 +1,20 @@
-export type DocumentType = 'sow' | 'timeline' | 'deliverable' | 'misc'
-export type MediaType = 'document' | 'image'
-export type DocumentStatus = 'uploaded' | 'approved' | 'indexed' | 'quarantined' | 'failed'
+export type DocumentType = 'PDF' | 'DOCX' | 'TXT' | 'MD' | 'HTML'
+export type MediaType = 'text' | 'image'
+export type DocumentStatus = 'uploaded' | 'pending_access' | 'access_approved' | 'processed' | 'indexed' | 'quarantined' | 'failed'
+export type DocumentDesignation = 'sow' | 'timeline' | 'deliverables' | 'misc'
 
-export interface Citation {
-  doc_id: string
+export interface Document {
+  id: string
   title: string
-  uri: string
-  page?: number
-  excerpt: string
-  thumbnail?: string
+  type: DocumentType
+  upload_date: string
+  size: number
+  status: 'uploaded' | 'pending_access' | 'access_approved' | 'processed' | 'indexed' | 'quarantined' | 'failed'
+  metadata?: {
+    pages?: number
+    author?: string
+    created_date?: string
+  }
 }
 
 export interface ChatRequest {
@@ -17,7 +23,6 @@ export interface ChatRequest {
     doc_type?: DocumentType
     media_type?: MediaType
   }
-  max_results?: number
 }
 
 export interface ChatResponse {
@@ -27,14 +32,44 @@ export interface ChatResponse {
   total_results: number
 }
 
-export interface InventoryItem {
+export interface Citation {
   doc_id: string
+  title: string
+  uri: string
+  page: number
+  excerpt: string
+  thumbnail?: string
+  web_view_link?: string
+}
+
+export interface DocumentDetail {
+  id: string
+  title: string
+  content: string
+  metadata: {
+    type: DocumentType
+    size: number
+    upload_date: string
+    pages?: number
+  }
+  chunks: DocumentChunk[]
+}
+
+export interface DocumentChunk {
+  id: string
+  text: string
+  page: number
+  score: number
+}
+
+export interface InventoryItem {
+  doc_id: string  // API returns doc_id, not id
   title: string
   doc_type: DocumentType
   media_type: MediaType
   status: DocumentStatus
   created_by: string
-  created_at: string
+  created_at: string  // API returns created_at, not upload_date
   topics: string[]
   thumbnail?: string
 }
@@ -45,49 +80,4 @@ export interface InventoryResponse {
   page: number
   page_size: number
   total_pages: number
-}
-
-export interface Document {
-  metadata: {
-    doc_id: string
-    media_type: MediaType
-    doc_type: DocumentType
-    title: string
-    uri: string
-    source_ref: string
-    status: DocumentStatus
-    required_fields_ok: boolean
-    dlp_scan: {
-      status: string
-      findings: any[]
-    }
-    thumbnails: string[]
-    embeddings: {
-      text: {
-        count: number
-      }
-    }
-    created_by: string
-    approved_by: string[]
-    topics: string[]
-    created_at: string
-    updated_at: string
-  }
-  content?: string
-  chunks: string[]
-  vector_ids: string[]
-}
-
-export interface IngestRequest {
-  title: string
-  doc_type: DocumentType
-  source_uri: string
-  tags: string[]
-  owner?: string
-  version?: string
-}
-
-export interface DriveSyncRequest {
-  folder_ids: string[]
-  recursive: boolean
 }

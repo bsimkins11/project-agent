@@ -1,0 +1,52 @@
+# Cloud Build configuration for Web Portal only
+steps:
+  # Build Next.js web portal
+  - name: 'node:18'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd web/portal
+        npm ci
+        npm run build
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-web:latest', './web/portal']
+    dir: '.'
+
+  # Push image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-web:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-web'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-web:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '3000'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,GCP_PROJECT=$PROJECT_ID'
+
+# Timeout
+timeout: '600s'
+
+# Images to store in Container Registry
+images:
+  - 'gcr.io/$PROJECT_ID/project-agent-web:latest'

@@ -5,8 +5,15 @@ from typing import List, Dict, Any
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
 from packages.shared.schemas import ChatRequest, ChatResponse, Citation
 from packages.shared.clients.auth import require_domain_auth
+from packages.shared.clients.vector_search import VectorSearchClient
+from packages.shared.clients.firestore import FirestoreClient
+from packages.agent_core import ADKPlanner
 
 app = FastAPI(
     title="Project Agent Chat API",
@@ -22,6 +29,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize clients
+vector_client = VectorSearchClient()
+firestore_client = FirestoreClient()
+agent_planner = ADKPlanner()
 
 
 @app.post("/chat", response_model=ChatResponse)
@@ -42,29 +54,35 @@ async def chat(
     start_time = time.time()
     
     try:
-        # Placeholder implementation
-        # In production, use ADK planner to process the query
-        answer = f"Based on your query '{request.query}', here's what I found in the knowledge base..."
+        # Use agent planner to process the query
+        user_id = user.get("email", "anonymous")
+        agent_result = await agent_planner.process_query(
+            query=request.query,
+            filters=request.filters or {},
+            max_results=10,
+            user_id=user_id
+        )
         
-        # Mock citations for now
-        citations = [
-            Citation(
-                doc_id="doc-001",
-                title="Sample Document",
-                uri="gs://bucket/sample.pdf",
-                page=1,
-                excerpt="Relevant excerpt from the document...",
-                thumbnail=None
+        # Convert agent snippets to citations
+        citations = []
+        for snippet in agent_result["snippets"]:
+            citation = Citation(
+                doc_id=snippet["doc_id"],
+                title=snippet["title"],
+                uri=snippet["uri"],
+                page=snippet["page"],
+                excerpt=snippet["excerpt"],
+                thumbnail=snippet["thumbnail"]
             )
-        ]
+            citations.append(citation)
         
         query_time_ms = int((time.time() - start_time) * 1000)
         
         return ChatResponse(
-            answer=answer,
+            answer=agent_result["answer"],
             citations=citations,
             query_time_ms=query_time_ms,
-            total_results=len(citations)
+            total_results=agent_result["total_results"]
         )
         
     except Exception as e:

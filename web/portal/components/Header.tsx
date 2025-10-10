@@ -36,10 +36,12 @@ export default function Header({
     // Check authentication state
     const savedAuth = localStorage.getItem('isAuthenticated')
     const savedEmail = localStorage.getItem('userEmail')
+    const authToken = localStorage.getItem('auth_token')
     
-    if (savedAuth === 'true' && savedEmail) {
+    // Consider authenticated if either the main auth or admin auth token exists
+    if ((savedAuth === 'true' && savedEmail) || authToken) {
       setIsAuthenticated(true)
-      setEmail(savedEmail)
+      setEmail(savedEmail || 'admin@transparent.partners')
     }
   }, [])
 
@@ -47,6 +49,7 @@ export default function Header({
     setIsAuthenticated(false)
     localStorage.removeItem('isAuthenticated')
     localStorage.removeItem('userEmail')
+    localStorage.removeItem('auth_token')
     window.location.href = '/'
   }
 
@@ -81,6 +84,16 @@ export default function Header({
             </a>
           </div>
           <nav className="flex items-center space-x-6">
+            {/* Home Link (shown on admin page) */}
+            {isAdminPage && (
+              <a 
+                href="/" 
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Home
+              </a>
+            )}
+
             {/* Documents Dropdown */}
             {showDocumentsDropdown && (
               <div className="relative group">

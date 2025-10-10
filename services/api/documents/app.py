@@ -72,6 +72,57 @@ async def get_document(
         )
 
 
+@app.get("/documents/by-category/{category}")
+async def get_documents_by_category(
+    category: str = Path(..., description="Document category"),
+    user: dict = Depends(require_domain_auth)
+) -> dict:
+    """
+    Get documents by category for end users.
+    """
+    try:
+        # Validate category
+        valid_categories = ["sow", "timeline", "deliverable", "misc"]
+        if category not in valid_categories:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid category. Must be one of: {valid_categories}"
+            )
+        
+        # Query documents by category
+        documents = await firestore.query_documents_by_category(category)
+        
+        # Format documents for frontend
+        formatted_documents = []
+        for doc in documents:
+            formatted_doc = {
+                "id": doc.get("id"),
+                "title": doc.get("title"),
+                "type": doc.get("type"),
+                "upload_date": doc.get("upload_date"),
+                "size": doc.get("size"),
+                "status": doc.get("status"),
+                "doc_type": doc.get("doc_type"),
+                "created_by": doc.get("created_by"),
+                "webViewLink": doc.get("source_ref")  # Use source_ref as webViewLink if available
+            }
+            formatted_documents.append(formatted_doc)
+        
+        return {
+            "category": category,
+            "documents": formatted_documents,
+            "total": len(formatted_documents)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get documents by category: {str(e)}"
+        )
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""

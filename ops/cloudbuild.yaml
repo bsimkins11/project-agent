@@ -3,23 +3,27 @@
 steps:
   # Build Python services
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA', './services/api/chat']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-chat-api:latest', './services/api/chat']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA', './services/api/inventory']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest', './services/api/inventory']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA', './services/api/documents']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-documents-api:latest', './services/api/documents']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA', './services/api/admin']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-admin-api:latest', './services/api/admin']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA', './services/workers/ingestion']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-upload-api:latest', './services/api/upload']
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:latest', './services/workers/ingestion']
     dir: '.'
 
   # Build Next.js web portal
@@ -34,27 +38,30 @@ steps:
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA', './web/portal']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-web:latest', './web/portal']
     dir: '.'
 
   # Push images to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-chat-api:latest']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-documents-api:latest']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-admin-api:latest']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-upload-api:latest']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:latest']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/project-agent-web:latest']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -64,7 +71,7 @@ steps:
       - 'deploy'
       - 'project-agent-chat-api'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/project-agent-chat-api:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -78,6 +85,8 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
+      - '--set-env-vars'
+      - 'GCP_PROJECT=$PROJECT_ID,REGION=us-central1,GCS_DOC_BUCKET=ta-test-docs-uat,GCS_THUMB_BUCKET=ta-test-thumbs-uat,FIRESTORE_DB=(default),VECTOR_INDEX=89915861896265728,NODE_ENV=production'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
@@ -86,7 +95,7 @@ steps:
       - 'deploy'
       - 'project-agent-inventory-api'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -100,6 +109,8 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
+      - '--set-env-vars'
+      - 'GCP_PROJECT=$PROJECT_ID,REGION=us-central1,GCS_DOC_BUCKET=ta-test-docs-uat,GCS_THUMB_BUCKET=ta-test-thumbs-uat,FIRESTORE_DB=(default),NODE_ENV=production'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
@@ -108,7 +119,7 @@ steps:
       - 'deploy'
       - 'project-agent-documents-api'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/project-agent-documents-api:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -122,6 +133,8 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
+      - '--set-env-vars'
+      - 'GCP_PROJECT=$PROJECT_ID,REGION=us-central1,GCS_DOC_BUCKET=ta-test-docs-uat,GCS_THUMB_BUCKET=ta-test-thumbs-uat,FIRESTORE_DB=(default),NODE_ENV=production'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
@@ -130,7 +143,7 @@ steps:
       - 'deploy'
       - 'project-agent-admin-api'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/project-agent-admin-api:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -144,6 +157,32 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
+      - '--set-env-vars'
+      - 'GCP_PROJECT=$PROJECT_ID,REGION=us-central1,GCS_DOC_BUCKET=ta-test-docs-uat,GCS_THUMB_BUCKET=ta-test-thumbs-uat,FIRESTORE_DB=(default),NODE_ENV=production'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'project-agent-upload-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/project-agent-upload-api:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8085'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--max-instances'
+      - '10'
+      - '--set-env-vars'
+      - 'GCP_PROJECT=$PROJECT_ID,REGION=us-central1,GCS_DOC_BUCKET=ta-test-docs-uat,GCS_THUMB_BUCKET=ta-test-thumbs-uat,FIRESTORE_DB=(default),NODE_ENV=production'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
@@ -152,7 +191,7 @@ steps:
       - 'deploy'
       - 'project-agent-ingestion-worker'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -174,7 +213,7 @@ steps:
       - 'deploy'
       - 'project-agent-web'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/project-agent-web:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -188,6 +227,8 @@ steps:
       - '1'
       - '--max-instances'
       - '10'
+      - '--set-env-vars'
+      - 'NODE_ENV=production,GCP_PROJECT=$PROJECT_ID'
 
 # Build options
 options:
@@ -199,9 +240,10 @@ timeout: '1200s'
 
 # Images to store in Container Registry
 images:
-  - 'gcr.io/$PROJECT_ID/project-agent-chat-api:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/project-agent-documents-api:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/project-agent-admin-api:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/project-agent-web:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/project-agent-chat-api:latest'
+  - 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest'
+  - 'gcr.io/$PROJECT_ID/project-agent-documents-api:latest'
+  - 'gcr.io/$PROJECT_ID/project-agent-admin-api:latest'
+  - 'gcr.io/$PROJECT_ID/project-agent-upload-api:latest'
+  - 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:latest'
+  - 'gcr.io/$PROJECT_ID/project-agent-web:latest'

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DocumentTextIcon, CloudArrowUpIcon, FolderIcon, CheckCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import DocumentInventory from '@/components/admin/DocumentInventory'
 import IngestForm from '@/components/admin/IngestForm'
@@ -11,6 +11,12 @@ type TabType = 'inventory' | 'ingest' | 'sync' | 'approval' | 'search'
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabType>('inventory')
+
+  // Set up authentication token for API calls
+  useEffect(() => {
+    // Set a test token for admin access
+    localStorage.setItem('auth_token', 'test-token')
+  }, [])
 
   const tabs = [
     { id: 'inventory', name: 'Inventory', icon: DocumentTextIcon },
