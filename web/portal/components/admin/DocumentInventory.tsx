@@ -58,7 +58,12 @@ export default function DocumentInventory() {
   }
 
   const updateFilter = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
+    // Only reset to page 1 when changing filters other than page
+    if (key === 'page') {
+      setFilters(prev => ({ ...prev, page: parseInt(value) }))
+    } else {
+      setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
+    }
   }
 
   const handleCategoryAssignment = async (docId: string, category: string) => {
