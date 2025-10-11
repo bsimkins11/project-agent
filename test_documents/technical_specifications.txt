@@ -1,0 +1,176 @@
+Project Agent Technical Specifications
+
+SYSTEM REQUIREMENTS
+
+Minimum System Requirements:
+- CPU: 2 cores, 2.4 GHz
+- RAM: 4 GB
+- Storage: 20 GB available space
+- Network: Broadband internet connection
+
+Recommended System Requirements:
+- CPU: 4 cores, 3.0 GHz or higher
+- RAM: 8 GB or more
+- Storage: 50 GB SSD
+- Network: High-speed broadband (100 Mbps+)
+
+SUPPORTED FILE FORMATS
+
+Document Types:
+- PDF: Adobe Portable Document Format
+- DOCX: Microsoft Word documents
+- TXT: Plain text files
+- MD: Markdown documents
+- HTML: HyperText Markup Language
+
+File Size Limits:
+- Maximum file size: 10 MB per document
+- Batch upload: Up to 50 files per batch
+- Total storage: Unlimited (subject to GCP quotas)
+
+IMAGE PROCESSING
+
+Supported Image Formats:
+- JPEG, PNG, GIF, BMP, TIFF
+- Maximum resolution: 4096x4096 pixels
+- OCR processing for text extraction
+- Automatic thumbnail generation
+
+API ENDPOINTS
+
+Core API Endpoints:
+- POST /chat - Process chat queries
+- GET /inventory - List available documents
+- GET /documents/{id} - Get document details
+- POST /upload - Upload new documents
+- POST /admin/ingest/csv - Bulk CSV ingestion
+- POST /admin/ingest/link - Process web links
+
+Response Formats:
+- JSON for all API responses
+- Standardized error codes
+- Pagination support for large datasets
+- CORS enabled for web applications
+
+DATABASE SCHEMA
+
+Document Metadata:
+- id: Unique document identifier
+- title: Document title
+- type: Document type (PDF, DOCX, etc.)
+- size: File size in bytes
+- uri: GCS storage URI
+- status: Processing status
+- upload_date: ISO timestamp
+- processing_result: AI processing data
+
+Vector Search Index:
+- vector_id: Unique vector identifier
+- embedding: 768-dimensional vector
+- metadata: Document and chunk information
+- doc_id: Reference to source document
+- chunk_text: Text content for this chunk
+
+PERFORMANCE BENCHMARKS
+
+Processing Performance:
+- PDF processing: 2-5 seconds per page
+- DOCX processing: 1-2 seconds per document
+- Text extraction accuracy: 95%+ for clean documents
+- OCR accuracy: 90%+ for scanned documents
+
+Search Performance:
+- Vector search: <100ms average response time
+- Index size: Supports 1M+ documents
+- Query throughput: 100+ queries per second
+- Cache hit ratio: 85%+ for common queries
+
+SCALABILITY LIMITS
+
+Current Capacity:
+- Documents: 1 million documents
+- Users: 1000 concurrent users
+- Storage: 100 TB total capacity
+- API calls: 10,000 requests per hour per user
+
+Scaling Options:
+- Horizontal scaling via Cloud Run
+- Auto-scaling based on demand
+- Regional deployment for global access
+- CDN integration for static content
+
+INTEGRATION CAPABILITIES
+
+Google Workspace Integration:
+- Google Drive sync
+- Google Sheets import
+- Gmail attachment processing
+- Calendar integration (planned)
+
+Third-party Integrations:
+- Slack notifications
+- Microsoft Teams support
+- Email notifications
+- Webhook support for custom integrations
+
+SECURITY SPECIFICATIONS
+
+Authentication:
+- Google OAuth 2.0
+- Domain restriction (@transparent.partners)
+- JWT token validation
+- Session management
+
+Data Protection:
+- End-to-end encryption
+- TLS 1.3 for all connections
+- Data at rest encryption (AES-256)
+- Regular security audits
+
+Access Control:
+- Role-based permissions
+- Document-level access control
+- Audit logging for all actions
+- IP whitelisting (optional)
+
+MONITORING AND LOGGING
+
+Application Monitoring:
+- Real-time performance metrics
+- Error tracking and alerting
+- User activity monitoring
+- System health dashboards
+
+Logging:
+- Structured JSON logging
+- Log aggregation via Cloud Logging
+- 30-day log retention
+- Automated log analysis
+
+BACKUP AND RECOVERY
+
+Data Backup:
+- Daily automated backups
+- Cross-region replication
+- Point-in-time recovery
+- Document versioning
+
+Disaster Recovery:
+- 4-hour RTO (Recovery Time Objective)
+- 1-hour RPO (Recovery Point Objective)
+- Automated failover procedures
+- Regular DR testing
+
+COMPLIANCE AND GOVERNANCE
+
+Data Governance:
+- GDPR compliance
+- SOC 2 Type II certification
+- HIPAA compliance (healthcare data)
+- Data retention policies
+
+Audit and Compliance:
+- Complete audit trails
+- Regulatory reporting
+- Data lineage tracking
+- Compliance monitoring dashboards
