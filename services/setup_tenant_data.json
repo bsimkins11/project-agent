@@ -1,0 +1,42 @@
+{
+  "client": {
+    "id": "client-transparent-partners",
+    "name": "Transparent Partners",
+    "domain": "transparent.partners",
+    "status": "active",
+    "created_by": "system@transparent.partners",
+    "contact_email": "admin@transparent.partners",
+    "contact_name": "Admin Team",
+    "industry": "Consulting & Technology",
+    "notes": "Default client for Transparent Partners internal projects",
+    "created_at": "2025-10-10T00:00:00Z",
+    "updated_at": "2025-10-10T00:00:00Z"
+  },
+  "project": {
+    "id": "project-chr-martech",
+    "client_id": "client-transparent-partners",
+    "name": "CHR MarTech Enablement",
+    "code": "CHR-MT-001",
+    "status": "active",
+    "created_by": "system@transparent.partners",
+    "start_date": "2024-11-21T00:00:00Z",
+    "description": "CHR MarTech Enablement project with 94 deliverables",
+    "tags": ["martech", "enablement", "chr", "sow1", "sow2", "sow3"],
+    "document_count": 98,
+    "created_at": "2025-10-10T00:00:00Z",
+    "updated_at": "2025-10-10T00:00:00Z"
+  },
+  "super_admin": {
+    "id": "user-super-admin",
+    "email": "admin@transparent.partners",
+    "name": "Super Admin",
+    "role": "super_admin",
+    "status": "active",
+    "client_ids": ["client-transparent-partners"],
+    "project_ids": ["project-chr-martech"],
+    "department": "Engineering",
+    "title": "System Administrator",
+    "created_at": "2025-10-10T00:00:00Z",
+    "updated_at": "2025-10-10T00:00:00Z"
+  }
+}

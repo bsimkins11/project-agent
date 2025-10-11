@@ -115,6 +115,11 @@ class DocumentMetadata(BaseModel):
     access_request_id: Optional[str] = Field(None, description="Unique access request identifier")
     index_source_id: Optional[str] = Field(None, description="ID of the document index this document came from")
     bulk_access_request: bool = Field(default=False, description="Whether this is part of a bulk access request")
+    
+    # Multi-tenant and RBAC fields (NEW)
+    client_id: Optional[str] = Field(None, description="Client/Organization ID - for multi-tenant isolation")
+    project_id: Optional[str] = Field(None, description="Project ID - documents belong to specific projects")
+    visibility: str = Field(default="project", description="Visibility scope: project|client|public")
 
 
 class Document(BaseModel):

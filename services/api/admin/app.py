@@ -751,11 +751,14 @@ async def analyze_document_index(
     user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
-    Analyze a document index (CSV, Google Sheets, or Drive folder) and create individual document entries for approval.
+    Analyze a document index (Google Sheets) and create individual document entries for a project.
+    Now supports multi-tenant: documents are automatically assigned to specified project.
     """
     try:
         index_url = request.get("index_url", "").strip()
         index_type = request.get("index_type", "sheets").strip().lower()  # Default to sheets
+        project_id = request.get("project_id", "project-chr-martech").strip()  # Project to assign documents to
+        client_id = request.get("client_id", "client-transparent-partners").strip()  # Client to assign documents to
         
         if not index_url:
             raise HTTPException(
@@ -868,7 +871,11 @@ async def analyze_document_index(
                 "from_sheet_index": True,
                 "sheet_index_id": sheet_id,
                 "created_at": datetime.now(),
-                "updated_at": datetime.now()
+                "updated_at": datetime.now(),
+                # RBAC fields - automatically assign to project
+                "client_id": client_id,
+                "project_id": project_id,
+                "visibility": "project"
             }
             documents_found.append(doc)
         
@@ -883,13 +890,25 @@ async def analyze_document_index(
                 logger.error(f"Error saving document {doc_data['id']}: {e}")
                 continue
         
+        # Update project document count
+        try:
+            project_ref = firestore_client.db.collection("projects").document(project_id)
+            project_ref.update({
+                "document_count": firestore.Increment(len(saved_docs)),
+                "updated_at": datetime.now()
+            })
+        except Exception as e:
+            logger.warning(f"Could not update project document count: {e}")
+        
         return {
             "success": True,
             "documents_created": len(saved_docs),
             "documents": saved_docs,
-            "message": f"Successfully analyzed Google Sheets and created {len(saved_docs)} document entries",
+            "message": f"Successfully analyzed Google Sheets and created {len(saved_docs)} document entries for project {project_id}",
             "sheet_id": sheet_id,
-            "sheet_name": sheet_name
+            "sheet_name": sheet_name,
+            "project_id": project_id,
+            "client_id": client_id
         }
         
     except HTTPException:
@@ -1716,11 +1735,13 @@ async def get_inventory(
     q: Optional[str] = None,
     created_by: Optional[str] = None,
     topics: Optional[str] = None,
+    client_id: Optional[str] = None,  # NEW: Filter by client
+    project_id: Optional[str] = None,  # NEW: Filter by project
     user: dict = Depends(require_admin_auth)
 ) -> InventoryResponse:
     """
     Get document inventory with filtering and pagination.
-    This endpoint serves the inventory functionality temporarily.
+    Now supports multi-tenant filtering by client_id and project_id.
     """
     try:
         # Parse topics if provided
@@ -1729,7 +1750,13 @@ async def get_inventory(
         # Query Firestore for documents
         docs_ref = firestore_client.db.collection("documents")
         
-        # Apply filters
+        # Apply RBAC filters (NEW)
+        if project_id:
+            docs_ref = docs_ref.where("project_id", "==", project_id)
+        elif client_id:
+            docs_ref = docs_ref.where("client_id", "==", client_id)
+        
+        # Apply other filters
         if doc_type:
             docs_ref = docs_ref.where("doc_type", "==", doc_type)
         if media_type:
@@ -1842,10 +1869,73 @@ async def get_inventory(
             detail=f"Failed to get inventory: {str(e)}"
         )
 
+@app.post("/admin/migrate-to-rbac")
+async def migrate_to_rbac(
+    request: Dict[str, Any],
+    user: dict = Depends(require_admin_auth)
+) -> Dict[str, Any]:
+    """
+    Migrate all existing documents to default client and project.
+    This is a one-time migration endpoint.
+    """
+    try:
+        client_id = request.get("client_id", "client-transparent-partners")
+        project_id = request.get("project_id", "project-chr-martech")
+        
+        # Get all documents without client_id or project_id
+        docs_ref = firestore_client.db.collection("documents")
+        all_docs = docs_ref.stream()
+        
+        migrated = 0
+        skipped = 0
+        
+        for doc in all_docs:
+            doc_data = doc.to_dict()
+            
+            # Skip if already has tenant fields
+            if doc_data.get("client_id") and doc_data.get("project_id"):
+                skipped += 1
+                continue
+            
+            # Add tenant fields
+            doc.reference.update({
+                "client_id": client_id,
+                "project_id": project_id,
+                "visibility": "project",
+                "updated_at": datetime.now()
+            })
+            
+            migrated += 1
+        
+        # Update project document count
+        project_ref = firestore_client.db.collection("projects").document(project_id)
+        project_ref.update({
+            "document_count": migrated,
+            "updated_at": datetime.now()
+        })
+        
+        logger.info(f"RBAC Migration: {migrated} documents migrated, {skipped} skipped")
+        
+        return {
+            "success": True,
+            "migrated": migrated,
+            "skipped": skipped,
+            "client_id": client_id,
+            "project_id": project_id,
+            "message": f"Successfully migrated {migrated} documents to {project_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Migration failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Migration failed: {str(e)}"
+        )
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "admin-api"}
+    return {"status": "healthy", "service": "admin-api", "rbac_enabled": True}
 
 if __name__ == "__main__":
     import uvicorn
