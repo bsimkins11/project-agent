@@ -1,19 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { DocumentTextIcon, CloudArrowUpIcon, FolderIcon, CheckCircleIcon, MagnifyingGlassIcon, BuildingOfficeIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { DocumentTextIcon, CloudArrowUpIcon, FolderIcon, MagnifyingGlassIcon, BuildingOfficeIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import DocumentInventory from '@/components/admin/DocumentInventory'
 import IngestForm from '@/components/admin/IngestForm'
 import DriveSync from '@/components/admin/DriveSync'
-import DocumentApproval from '@/components/admin/DocumentApproval'
 import ClientManagement from '@/components/admin/ClientManagement'
 import ProjectManagement from '@/components/admin/ProjectManagement'
 import RBACMigration from '@/components/admin/RBACMigration'
 
-type TabType = 'inventory' | 'ingest' | 'sync' | 'approval' | 'search' | 'clients' | 'projects' | 'migration'
+type TabType = 'inventory' | 'ingest' | 'sync' | 'search' | 'clients' | 'projects' | 'migration'
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('inventory')
+  const [activeTab, setActiveTab] = useState<TabType>('clients')
 
   // Set up authentication token for API calls
   useEffect(() => {
@@ -22,12 +21,11 @@ export default function AdminPage() {
   }, [])
 
   const tabs = [
-    { id: 'inventory', name: 'Inventory', icon: DocumentTextIcon },
     { id: 'clients', name: 'Clients', icon: BuildingOfficeIcon },
     { id: 'projects', name: 'Projects', icon: FolderIcon },
+    { id: 'inventory', name: 'Inventory', icon: DocumentTextIcon },
     { id: 'ingest', name: 'Ingest Documents', icon: CloudArrowUpIcon },
-    { id: 'sync', name: 'Drive Search', icon: FolderIcon },
-    { id: 'approval', name: 'Document Approval', icon: CheckCircleIcon },
+    { id: 'sync', name: 'Drive Search', icon: MagnifyingGlassIcon },
     { id: 'migration', name: 'RBAC Migration', icon: ArrowPathIcon },
   ]
 
@@ -60,12 +58,11 @@ export default function AdminPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'inventory' && <DocumentInventory />}
         {activeTab === 'clients' && <ClientManagement />}
         {activeTab === 'projects' && <ProjectManagement />}
+        {activeTab === 'inventory' && <DocumentInventory />}
         {activeTab === 'ingest' && <IngestForm />}
         {activeTab === 'sync' && <DriveSync />}
-        {activeTab === 'approval' && <DocumentApproval />}
         {activeTab === 'migration' && <RBACMigration />}
         {activeTab === 'search' && (
           <div className="space-y-6">
