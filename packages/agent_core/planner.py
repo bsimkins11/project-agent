@@ -14,45 +14,64 @@ class ADKPlanner:
     
     async def process_query(self, query: str, filters: Dict[str, Any], max_results: int, user_id: str) -> Dict[str, Any]:
         """
-        Process user query using ADK planner.
+        Process user query using ADK planner with RBAC filtering.
+        
+        CRITICAL: Filters documents by user's accessible projects/clients BEFORE
+        composing answer to prevent information leakage.
         
         Args:
             query: User query string
-            filters: Query filters
+            filters: Query filters (includes user_project_ids, user_client_ids, user_role)
             max_results: Maximum results to return
             user_id: User identifier
             
         Returns:
-            Query results with answer and snippets
+            Query results with answer and snippets (only from accessible documents)
         """
         try:
+            # Extract RBAC context from filters
+            user_project_ids = filters.get("user_project_ids", [])
+            user_client_ids = filters.get("user_client_ids", [])
+            user_role = filters.get("user_role", "")
+            
             # Generate query embedding
             query_embedding = await self.vector_search.generate_embedding(query)
             
-            # Search vectors
+            # Search vectors (get more results than needed for filtering)
             search_results = await self.vector_search.search_vectors(
                 query_embedding=query_embedding,
                 filters=filters,
-                max_results=max_results
+                max_results=max_results * 3  # Get 3x results to account for RBAC filtering
             )
             
-            # Fetch snippets for results
-            snippets = []
+            # Fetch snippets and filter by RBAC BEFORE composing answer
+            all_snippets = []
             for result in search_results:
-                snippet = await self.fetch_snippets(
-                    doc_id=result["metadata"]["doc_id"],
-                    chunk_index=result["metadata"]["chunk_index"],
-                    text=result["metadata"]["text"]
-                )
-                snippets.append(snippet)
+                doc_id = result["metadata"]["doc_id"]
+                
+                # Get document metadata to check project/client assignment
+                doc_metadata = await self.firestore.get_document_metadata(doc_id)
+                
+                # CRITICAL: Filter by RBAC before including in snippets
+                if await self._check_document_access(doc_metadata, user_project_ids, user_client_ids, user_role):
+                    snippet = await self.fetch_snippets(
+                        doc_id=doc_id,
+                        chunk_index=result["metadata"]["chunk_index"],
+                        text=result["metadata"]["text"]
+                    )
+                    all_snippets.append(snippet)
+                    
+                    # Stop once we have enough accessible snippets
+                    if len(all_snippets) >= max_results:
+                        break
             
-            # Compose answer (placeholder for now)
-            answer = self.compose_answer(query, snippets)
+            # Compose answer ONLY from accessible snippets
+            answer = self.compose_answer(query, all_snippets)
             
             return {
                 "answer": answer,
-                "snippets": snippets,
-                "total_results": len(snippets)
+                "snippets": all_snippets,
+                "total_results": len(all_snippets)
             }
             
         except Exception as e:
@@ -62,6 +81,41 @@ class ADKPlanner:
                 "snippets": [],
                 "total_results": 0
             }
+    
+    async def _check_document_access(self, doc_metadata: Any, user_project_ids: List[str], user_client_ids: List[str], user_role: str) -> bool:
+        """
+        Check if user has access to document based on RBAC rules.
+        
+        CRITICAL SECURITY FUNCTION - This prevents information leakage.
+        
+        Args:
+            doc_metadata: Document metadata
+            user_project_ids: User's accessible project IDs
+            user_client_ids: User's accessible client IDs
+            user_role: User's role (super_admin has all access)
+            
+        Returns:
+            True if user can access document, False otherwise
+        """
+        if not doc_metadata:
+            return False
+        
+        # Super admins have access to everything
+        if user_role == "super_admin":
+            return True
+        
+        # Check project access
+        doc_project_id = getattr(doc_metadata, 'project_id', None)
+        if doc_project_id and doc_project_id in user_project_ids:
+            return True
+        
+        # Check client access
+        doc_client_id = getattr(doc_metadata, 'client_id', None)
+        if doc_client_id and doc_client_id in user_client_ids:
+            return True
+        
+        # Default: no access
+        return False
     
     def compose_answer(self, query: str, snippets: List[Dict[str, Any]]) -> str:
         """Compose AI answer from query and snippets."""
