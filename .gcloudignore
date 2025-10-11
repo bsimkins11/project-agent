@@ -1,0 +1,63 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore
+
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Environment files - KEEP .env.example
+.env
+.env.local
+.env.development
+.env.production
+services/.env
+services/.env.production
+
+# Node
+node_modules/
+
+# Next.js - Don't upload build output, will be built in Cloud Build
+.next/
+out/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test files
+test_*.py
+*_test.py
+test_*.sh
+qa_test_results.txt
+test_sample.txt
+test_documents/
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+.terraform/
+
