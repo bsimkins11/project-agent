@@ -31,8 +31,21 @@ export default function DocumentInventory() {
   useEffect(() => {
     loadInventory()
   }, [filters])
+  
+  useEffect(() => {
+    // Listen for project changes from header selector
+    const handleProjectChange = (event: any) => {
+      const projectId = event.detail?.projectId || ''
+      // Update filters to include selected project
+      setFilters(prev => ({ ...prev, page: 1 }))
+      loadInventory(projectId)
+    }
+    
+    window.addEventListener('projectChanged', handleProjectChange)
+    return () => window.removeEventListener('projectChanged', handleProjectChange)
+  }, [])
 
-  const loadInventory = async () => {
+  const loadInventory = async (projectIdOverride?: string) => {
     setLoading(true)
     try {
       // Ensure auth token is set before making API call
@@ -40,7 +53,18 @@ export default function DocumentInventory() {
         localStorage.setItem('auth_token', 'test-token')
       }
       
-      const response = await getInventory(filters)
+      // Get selected project from localStorage or parameter
+      const selectedProjectId = projectIdOverride !== undefined 
+        ? projectIdOverride 
+        : localStorage.getItem('selected_project_id') || ''
+      
+      // Add project_id to filters if selected
+      const queryParams = { ...filters }
+      if (selectedProjectId) {
+        (queryParams as any).project_id = selectedProjectId
+      }
+      
+      const response = await getInventory(queryParams)
       setItems(response.items)
       setPagination({
         total: response.total,

@@ -28,6 +28,9 @@ export default function Header({
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [email, setEmail] = useState('')
   const [isHydrated, setIsHydrated] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<string>('')
+  const [projects, setProjects] = useState<Array<{id: string, name: string}>>([])
+  const [showProjectSelector, setShowProjectSelector] = useState(false)
 
   useEffect(() => {
     // Mark as hydrated to avoid SSR issues
@@ -42,8 +45,37 @@ export default function Header({
     if ((savedAuth === 'true' && savedEmail) || authToken) {
       setIsAuthenticated(true)
       setEmail(savedEmail || 'admin@transparent.partners')
+      
+      // Load projects for project selector
+      loadProjects()
+    }
+    
+    // Check for saved project selection
+    const savedProject = localStorage.getItem('selected_project_id')
+    if (savedProject) {
+      setSelectedProject(savedProject)
     }
   }, [])
+  
+  const loadProjects = async () => {
+    try {
+      const response = await fetch('/api/admin/rbac/projects')
+      if (response.ok) {
+        const data = await response.json()
+        setProjects(data.projects || [])
+        setShowProjectSelector(data.projects && data.projects.length > 0)
+      }
+    } catch (error) {
+      console.error('Failed to load projects:', error)
+    }
+  }
+  
+  const handleProjectChange = (projectId: string) => {
+    setSelectedProject(projectId)
+    localStorage.setItem('selected_project_id', projectId)
+    // Trigger page reload or event to update document list
+    window.dispatchEvent(new CustomEvent('projectChanged', { detail: { projectId } }))
+  }
 
   const handleSignOut = () => {
     setIsAuthenticated(false)
@@ -84,6 +116,25 @@ export default function Header({
             </a>
           </div>
           <nav className="flex items-center space-x-6">
+            {/* Project Selector (shown when projects exist) */}
+            {showProjectSelector && projects.length > 0 && (
+              <div className="relative">
+                <label className="text-xs text-gray-500 block mb-1">Project</label>
+                <select
+                  value={selectedProject}
+                  onChange={(e) => handleProjectChange(e.target.value)}
+                  className="text-sm border border-gray-300 rounded px-3 py-1.5 bg-white text-gray-700 hover:border-gray-400 transition-colors"
+                >
+                  <option value="">All Projects</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          
             {/* Home Link (shown on admin page) */}
             {isAdminPage && (
               <a 
