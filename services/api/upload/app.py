@@ -1,9 +1,9 @@
-"""Document upload API service for Project Agent."""
+"""Document upload API service for Project Agent with RBAC authorization."""
 
 import os
 import uuid
 from typing import Dict, Any
-from fastapi import FastAPI, File, UploadFile, HTTPException, status
+from fastapi import FastAPI, File, UploadFile, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import sys
@@ -18,6 +18,8 @@ from packages.shared.clients.gcs import GCSClient
 from packages.shared.clients.documentai import DocumentAIClient
 from packages.shared.clients.firestore import FirestoreClient
 from packages.shared.schemas.document import DocumentMetadata
+from packages.shared.schemas.rbac import PermissionType
+from packages.shared.clients.auth import require_permission
 
 app = FastAPI(
     title="Project Agent Upload API",
@@ -53,13 +55,16 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 @app.post("/upload")
 async def upload_document(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    user: dict = Depends(require_permission(PermissionType.UPLOAD_DOCUMENTS))
 ) -> Dict[str, Any]:
     """
-    Upload and process a document.
+    Upload and process a document. Requires UPLOAD_DOCUMENTS permission.
+    Only Project Admins and Super Admins can upload documents.
     
     Args:
         file: The uploaded file
+        user: Authenticated user with UPLOAD_DOCUMENTS permission
         
     Returns:
         Document metadata and processing results

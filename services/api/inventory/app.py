@@ -1,4 +1,4 @@
-"""Inventory API service for Project Agent."""
+"""Inventory API service for Project Agent with RBAC filtering."""
 
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends, status, Query
@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from packages.shared.schemas import InventoryRequest, InventoryResponse, InventoryFilters
 from packages.shared.clients.firestore import FirestoreClient
-from packages.shared.clients.auth import require_domain_auth
+from packages.shared.clients.auth import require_domain_auth, filter_documents_by_access
 
 app = FastAPI(
     title="Project Agent Inventory API",
@@ -39,10 +39,13 @@ async def get_inventory(
     q: Optional[str] = Query(None, description="Search query"),
     created_by: Optional[str] = Query(None, description="Filter by creator"),
     topics: Optional[str] = Query(None, description="Comma-separated topics"),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    client_id: Optional[str] = Query(None, description="Filter by client ID"),
     user: dict = Depends(require_domain_auth)
 ) -> InventoryResponse:
     """
-    Get document inventory with filtering and pagination.
+    Get document inventory with filtering, pagination, and RBAC access control.
+    Users see only documents they have access to based on their project/client assignments.
     """
     try:
         # Parse topics if provided
@@ -58,16 +61,41 @@ async def get_inventory(
             topics=topic_list
         )
         
-        # Get inventory from Firestore
-        result = await firestore.get_inventory(
+        # Get all documents from Firestore (without pagination first)
+        # We need all results to apply RBAC filtering before paginating
+        all_results = await firestore.get_inventory(
             filters=filters,
-            page=page,
-            page_size=page_size,
+            page=1,
+            page_size=1000,  # Get a large batch
             sort_by=sort_by,
             sort_order=sort_order
         )
         
-        return InventoryResponse(**result)
+        # Filter documents by user access (RBAC)
+        accessible_docs = await filter_documents_by_access(
+            user["email"],
+            all_results["items"]
+        )
+        
+        # Additional filtering by project_id or client_id if provided
+        if project_id:
+            accessible_docs = [d for d in accessible_docs if d.get("project_id") == project_id]
+        if client_id:
+            accessible_docs = [d for d in accessible_docs if d.get("client_id") == client_id]
+        
+        # Calculate pagination
+        total = len(accessible_docs)
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_docs = accessible_docs[start_idx:end_idx]
+        
+        return InventoryResponse(
+            items=paginated_docs,
+            total=total,
+            page=page,
+            page_size=page_size,
+            total_pages=(total + page_size - 1) // page_size
+        )
         
     except Exception as e:
         raise HTTPException(

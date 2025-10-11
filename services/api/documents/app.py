@@ -1,4 +1,4 @@
-"""Documents API service for Project Agent."""
+"""Documents API service for Project Agent with RBAC access control."""
 
 from fastapi import FastAPI, HTTPException, Depends, status, Path
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from packages.shared.schemas import Document, DocumentMetadata
 from packages.shared.clients.firestore import FirestoreClient
 from packages.shared.clients.gcs import GCSClient
-from packages.shared.clients.auth import require_domain_auth
+from packages.shared.clients.auth import require_domain_auth, check_document_access, filter_documents_by_access
 
 app = FastAPI(
     title="Project Agent Documents API",
@@ -34,9 +34,18 @@ async def get_document(
     user: dict = Depends(require_domain_auth)
 ) -> Document:
     """
-    Get document details and metadata.
+    Get document details and metadata with RBAC access control.
+    Users can only access documents in their assigned projects/clients.
     """
     try:
+        # Check if user has access to this document (RBAC)
+        has_access = await check_document_access(user["email"], doc_id)
+        if not has_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied to document: {doc_id}"
+            )
+        
         # Get document metadata from Firestore
         metadata = await firestore.get_document_metadata(doc_id)
         if not metadata:
@@ -78,7 +87,8 @@ async def get_documents_by_category(
     user: dict = Depends(require_domain_auth)
 ) -> dict:
     """
-    Get documents by category for end users.
+    Get documents by category for end users with RBAC filtering.
+    Users see only documents they have access to.
     """
     try:
         # Validate category
@@ -92,9 +102,12 @@ async def get_documents_by_category(
         # Query documents by category
         documents = await firestore.query_documents_by_category(category)
         
+        # Filter documents by user access (RBAC)
+        accessible_docs = await filter_documents_by_access(user["email"], documents)
+        
         # Format documents for frontend
         formatted_documents = []
-        for doc in documents:
+        for doc in accessible_docs:
             formatted_doc = {
                 "id": doc.get("id"),
                 "title": doc.get("title"),

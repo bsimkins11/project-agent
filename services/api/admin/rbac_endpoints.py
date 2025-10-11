@@ -1,4 +1,4 @@
-"""RBAC management endpoints for clients, projects, and users."""
+"""RBAC management endpoints for clients, projects, and users with authorization."""
 
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, status
@@ -8,17 +8,14 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
 
-from packages.shared.schemas.rbac import Client, Project, UserProfile, UserRole
+from packages.shared.schemas.rbac import Client, Project, UserProfile, UserRole, PermissionType
 from packages.shared.clients.rbac import RBACClient
+from packages.shared.clients.auth import require_permission, require_role, require_client_access
 from packages.shared.config import settings
 from google.cloud import firestore
 
 router = APIRouter(prefix="/admin/rbac", tags=["RBAC"])
 rbac_client = RBACClient()
-
-# Mock auth for now
-async def get_current_user():
-    return {"email": "admin@transparent.partners", "role": "super_admin"}
 
 # ============================================================================
 # CLIENT MANAGEMENT
@@ -27,9 +24,12 @@ async def get_current_user():
 @router.post("/clients", status_code=status.HTTP_201_CREATED)
 async def create_client(
     client_data: Dict[str, Any],
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.MANAGE_CLIENTS))
 ) -> Dict[str, Any]:
-    """Create a new client."""
+    """
+    Create a new client. Requires MANAGE_CLIENTS permission.
+    Only Super Admins can create clients.
+    """
     try:
         client = Client(
             id=client_data.get("id", f"client-{client_data['name'].lower().replace(' ', '-')}"),
@@ -59,11 +59,21 @@ async def create_client(
 @router.get("/clients")
 async def list_clients(
     status_filter: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.VIEW_CLIENTS))
 ) -> Dict[str, Any]:
-    """List all clients."""
+    """
+    List clients. Requires VIEW_CLIENTS permission.
+    Super Admins see all clients, Account Admins see assigned clients.
+    """
     try:
-        clients = await rbac_client.list_clients(status=status_filter)
+        # Super admins see all clients
+        if current_user["role"] == UserRole.SUPER_ADMIN:
+            clients = await rbac_client.list_clients(status=status_filter)
+        else:
+            # Account admins see only their assigned clients
+            user_client_ids = current_user.get("client_ids", [])
+            all_clients = await rbac_client.list_clients(status=status_filter)
+            clients = [c for c in all_clients if c.id in user_client_ids]
         
         return {
             "clients": [client.dict() for client in clients],
@@ -78,10 +88,21 @@ async def list_clients(
 @router.get("/clients/{client_id}")
 async def get_client(
     client_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.VIEW_CLIENTS))
 ) -> Dict[str, Any]:
-    """Get client details."""
+    """
+    Get client details. Requires VIEW_CLIENTS permission.
+    Users can only view clients they have access to.
+    """
     try:
+        # Check access (super admins bypass this)
+        if current_user["role"] != UserRole.SUPER_ADMIN:
+            if client_id not in current_user.get("client_ids", []):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied to client: {client_id}"
+                )
+        
         client = await rbac_client.get_client(client_id)
         if not client:
             raise HTTPException(
@@ -112,13 +133,25 @@ async def get_client(
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_data: Dict[str, Any],
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.MANAGE_PROJECTS))
 ) -> Dict[str, Any]:
-    """Create a new project."""
+    """
+    Create a new project. Requires MANAGE_PROJECTS permission.
+    Only Super Admins and Account Admins can create projects.
+    """
     try:
+        # Verify user has access to the client
+        client_id = project_data["client_id"]
+        if current_user["role"] != UserRole.SUPER_ADMIN:
+            if client_id not in current_user.get("client_ids", []):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied to client: {client_id}"
+                )
+        
         project = Project(
             id=project_data.get("id", f"project-{project_data['name'].lower().replace(' ', '-')}"),
-            client_id=project_data["client_id"],
+            client_id=client_id,
             name=project_data["name"],
             code=project_data.get("code"),
             status=project_data.get("status", "active"),
@@ -138,6 +171,8 @@ async def create_project(
             "message": f"Project '{project.name}' created successfully",
             "document_index_url": project.document_index_url
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -148,14 +183,25 @@ async def create_project(
 async def list_projects(
     client_id: Optional[str] = None,
     status_filter: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.VIEW_PROJECTS))
 ) -> Dict[str, Any]:
-    """List projects, optionally filtered by client."""
+    """
+    List projects. Requires VIEW_PROJECTS permission.
+    Users see only projects they have access to.
+    """
     try:
-        projects = await rbac_client.list_projects(
+        all_projects = await rbac_client.list_projects(
             client_id=client_id,
             status=status_filter
         )
+        
+        # Super admins see all projects
+        if current_user["role"] == UserRole.SUPER_ADMIN:
+            projects = all_projects
+        else:
+            # Filter by accessible projects
+            accessible_project_ids = set(current_user.get("project_ids", []))
+            projects = [p for p in all_projects if p.id in accessible_project_ids]
         
         return {
             "projects": [project.dict() for project in projects],
@@ -170,10 +216,21 @@ async def list_projects(
 @router.get("/projects/{project_id}")
 async def get_project(
     project_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.VIEW_PROJECTS))
 ) -> Dict[str, Any]:
-    """Get project details with document count."""
+    """
+    Get project details. Requires VIEW_PROJECTS permission.
+    Users can only view projects they have access to.
+    """
     try:
+        # Check access (super admins bypass this)
+        if current_user["role"] != UserRole.SUPER_ADMIN:
+            if project_id not in current_user.get("project_ids", []):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied to project: {project_id}"
+                )
+        
         project = await rbac_client.get_project(project_id)
         if not project:
             raise HTTPException(
@@ -184,7 +241,7 @@ async def get_project(
         # Get document count
         documents = await rbac_client.get_project_documents(
             project_id=project_id,
-            user_id="user-super-admin"  # TODO: Use actual user
+            user_id=current_user.get("user_id", "")
         )
         
         return {
@@ -203,10 +260,21 @@ async def get_project(
 async def import_project_documents(
     project_id: str,
     force_reimport: bool = False,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.MANAGE_PROJECTS))
 ) -> Dict[str, Any]:
-    """Import/refresh documents from project's document index URL."""
+    """
+    Import/refresh documents from project's document index URL.
+    Requires MANAGE_PROJECTS permission.
+    """
     try:
+        # Check project access (super admins bypass this)
+        if current_user["role"] != UserRole.SUPER_ADMIN:
+            if project_id not in current_user.get("project_ids", []):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied to project: {project_id}"
+                )
+        
         # Get project
         project = await rbac_client.get_project(project_id)
         if not project:
@@ -248,10 +316,23 @@ async def import_project_documents(
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: Dict[str, Any],
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.MANAGE_CLIENT_USERS))
 ) -> Dict[str, Any]:
-    """Create a new user."""
+    """
+    Create a new user. Requires MANAGE_CLIENT_USERS permission.
+    Super Admins can create any user. Account Admins can create users in their clients.
+    """
     try:
+        # Validate client access for Account Admins
+        if current_user["role"] == UserRole.ACCOUNT_ADMIN:
+            user_client_ids = user_data.get("client_ids", [])
+            allowed_clients = set(current_user.get("client_ids", []))
+            if not all(cid in allowed_clients for cid in user_client_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Cannot assign user to clients you don't have access to"
+                )
+        
         user = UserProfile(
             id=user_data.get("id", f"user-{user_data['email'].split('@')[0]}"),
             email=user_data["email"],
@@ -272,6 +353,8 @@ async def create_user(
             "user_id": user_id,
             "message": f"User '{user.email}' created successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -281,9 +364,11 @@ async def create_user(
 @router.get("/users/{user_id}/projects")
 async def get_user_projects(
     user_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(require_permission(PermissionType.VIEW_USERS))
 ) -> Dict[str, Any]:
-    """Get all projects accessible by a user."""
+    """
+    Get all projects accessible by a user. Requires VIEW_USERS permission.
+    """
     try:
         projects = await rbac_client.get_user_projects(user_id)
         
