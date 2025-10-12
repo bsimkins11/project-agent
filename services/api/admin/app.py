@@ -1495,24 +1495,24 @@ async def delete_document(
     user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
-    Delete a document from the repository (with confirmation).
+    Delete a single document from Firestore.
     """
     try:
-        # Find document
-        doc_found = False
-        doc_to_delete = None
-        for i, doc in enumerate(mock_documents):
-            if doc["id"] == doc_id:
-                doc_to_delete = doc
-                mock_documents.pop(i)
-                doc_found = True
-                break
+        # Get document from Firestore first
+        doc_ref = firestore_client.db.collection("documents").document(doc_id)
+        doc = doc_ref.get()
         
-        if not doc_found:
+        if not doc.exists:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Document {doc_id} not found"
             )
+        
+        doc_to_delete = doc.to_dict()
+        
+        # Delete from Firestore
+        doc_ref.delete()
+        logger.info(f"Deleted document {doc_id} from Firestore")
         
         return {
             "success": True,
@@ -1524,9 +1524,102 @@ async def delete_document(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to delete document {doc_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete document: {str(e)}"
+        )
+
+
+@app.post("/admin/documents/bulk-delete")
+async def bulk_delete_documents(
+    request: Dict[str, Any],
+    user: dict = Depends(require_admin_auth)
+) -> Dict[str, Any]:
+    """
+    Bulk delete documents. Useful for clearing inventory before importing new template.
+    
+    Request body:
+    {
+        "doc_ids": ["doc1", "doc2", ...],  // List of specific doc IDs
+        "delete_all": false,  // Set to true to delete ALL documents (use with caution!)
+        "project_id": "project-xxx",  // Optional: Delete only documents in this project
+        "client_id": "client-xxx"  // Optional: Delete only documents in this client
+    }
+    """
+    try:
+        doc_ids = request.get("doc_ids", [])
+        delete_all = request.get("delete_all", False)
+        project_id = request.get("project_id")
+        client_id = request.get("client_id")
+        
+        deleted_count = 0
+        failed_count = 0
+        deleted_docs = []
+        
+        # Option 1: Delete specific documents by ID
+        if doc_ids:
+            for doc_id in doc_ids:
+                try:
+                    doc_ref = firestore_client.db.collection("documents").document(doc_id)
+                    doc = doc_ref.get()
+                    if doc.exists:
+                        doc_ref.delete()
+                        deleted_docs.append(doc_id)
+                        deleted_count += 1
+                        logger.info(f"Deleted document {doc_id}")
+                    else:
+                        failed_count += 1
+                        logger.warning(f"Document {doc_id} not found")
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(f"Failed to delete {doc_id}: {str(e)}")
+        
+        # Option 2: Delete all documents (with optional filtering)
+        elif delete_all:
+            query = firestore_client.db.collection("documents")
+            
+            # Apply filters if provided
+            if project_id:
+                query = query.where("project_id", "==", project_id)
+            if client_id:
+                query = query.where("client_id", "==", client_id)
+            
+            # Get all matching documents
+            docs = query.stream()
+            
+            for doc in docs:
+                try:
+                    doc.reference.delete()
+                    deleted_docs.append(doc.id)
+                    deleted_count += 1
+                    logger.info(f"Deleted document {doc.id}")
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(f"Failed to delete {doc.id}: {str(e)}")
+        
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either 'doc_ids' array or 'delete_all: true' must be provided"
+            )
+        
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "failed_count": failed_count,
+            "deleted_docs": deleted_docs,
+            "message": f"Successfully deleted {deleted_count} documents" + 
+                      (f", {failed_count} failed" if failed_count > 0 else "")
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Bulk delete failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bulk delete failed: {str(e)}"
         )
 
 @app.get("/admin/documents/by-category/{category}")
