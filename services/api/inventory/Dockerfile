@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir \
     google-cloud-aiplatform==1.119.0 \
     google-cloud-documentai==3.6.0 \
     pydantic==2.5.0 \
+    pydantic-settings==2.1.0 \
     email-validator==2.1.0 \
     python-multipart==0.0.6 \
     requests==2.32.5 \
