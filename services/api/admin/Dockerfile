@@ -27,8 +27,8 @@ RUN pip install --no-cache-dir \
     PyJWT==2.8.0
 
 # Copy the entire project structure
-COPY packages ./packages
-COPY services/api/admin ./
+COPY ./packages ./packages
+COPY ./services/api/admin ./
 
 # Expose port
 EXPOSE 8084

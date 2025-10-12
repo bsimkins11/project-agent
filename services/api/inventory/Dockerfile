@@ -27,8 +27,8 @@ RUN pip install --no-cache-dir \
     PyJWT==2.8.0
 
 # Copy the entire project structure
-COPY packages ./packages
-COPY services/api/inventory ./
+COPY ./packages ./packages
+COPY ./services/api/inventory ./
 
 # Expose port
 EXPOSE 8082
