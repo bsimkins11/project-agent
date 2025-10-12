@@ -3,6 +3,7 @@
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
+from packages.shared.schemas.rbac import UserRole
 
 
 class TenantContext(BaseModel):
