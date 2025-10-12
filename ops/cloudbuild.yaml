@@ -1,29 +1,29 @@
 # Cloud Build configuration for Project Agent
 
 steps:
-  # Build Python services
+  # Build Python services - using root context with Dockerfile path
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-chat-api:latest', './services/api/chat']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-chat-api:latest', '-f', 'services/api/chat/Dockerfile', '.']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest', './services/api/inventory']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-inventory-api:latest', '-f', 'services/api/inventory/Dockerfile', '.']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-documents-api:latest', './services/api/documents']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-documents-api:latest', '-f', 'services/api/documents/Dockerfile', '.']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-admin-api:latest', './services/api/admin']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-admin-api:latest', '-f', 'services/api/admin/Dockerfile', '.']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-upload-api:latest', './services/api/upload']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-upload-api:latest', '-f', 'services/api/upload/Dockerfile', '.']
     dir: '.'
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:latest', './services/workers/ingestion']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/project-agent-ingestion-worker:latest', '-f', 'services/workers/ingestion/Dockerfile', '.']
     dir: '.'
 
   # Build Next.js web portal
