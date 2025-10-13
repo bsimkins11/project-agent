@@ -29,8 +29,23 @@ Your Google Sheets should include these columns (exact names or variations):
 3. Add the column headers in the first row
 4. Fill in your document information
 
-### 2. Ensure Proper Access
-The system will use Google Drive API to access your documents securely. No public sharing required.
+### 2. Share with Service Account (REQUIRED)
+
+**Important**: You must share your Google Sheet with the service account for the agent to access it.
+
+#### Getting the Service Account Email
+1. In the Project Deliverable Agent, go to the Admin Panel
+2. Look for the "Service Account Info" section or button
+3. Copy the service account email (it looks like: `project-agent-drive-access@your-project.iam.gserviceaccount.com`)
+
+#### Sharing Your Google Sheet
+1. Open your Google Sheet
+2. Click the **Share** button (top right corner)
+3. Paste the service account email
+4. Set permission to **Viewer**
+5. Click **Send**
+
+**Note**: You only need to share once. The service account will retain access for all future operations.
 
 ### 3. Get Your Sheet URL
 1. Copy the URL from your browser's address bar
@@ -41,6 +56,7 @@ The system will use Google Drive API to access your documents securely. No publi
 
 ### 4. Test Your Sheet
 Before submitting to the system, verify:
+- ✅ Sheet has been shared with the service account
 - ✅ Sheet contains data (not empty)
 - ✅ Column headers are in the first row
 - ✅ URL is complete and valid
@@ -49,17 +65,23 @@ Before submitting to the system, verify:
 
 ### Issue: "Failed to analyze document index"
 **Possible Causes:**
-1. **Empty or no data in sheet**
+
+1. **🔒 Service account doesn't have access (MOST COMMON)**
+   - **Error message**: "Unable to access Google Sheets. Please share the document with the service account."
+   - **Solution**: 
+     - Get the service account email from the Admin Panel (look for "Service Account Info")
+     - Open your Google Sheet
+     - Click "Share" and add the service account email with "Viewer" permission
+     - Try again
+   
+2. **Empty or no data in sheet**
    - Solution: Add at least one row of data below headers
    
-2. **Invalid Google Sheets URL**
+3. **Invalid Google Sheets URL**
    - Solution: Copy the complete URL from browser address bar
    
-3. **Sheet doesn't exist or was deleted**
+4. **Sheet doesn't exist or was deleted**
    - Solution: Verify the sheet exists and URL is correct
-
-4. **Service account permissions**
-   - Solution: Contact your administrator to ensure proper Google Drive API access
 
 ### Issue: "No data found in Google Sheets"
 **Solutions:**

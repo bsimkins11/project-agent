@@ -61,6 +61,9 @@ class GoogleDriveServiceAccount:
             secret_payload = response.payload.data.decode("UTF-8")
             credentials_info = json.loads(secret_payload)
             
+            # Store service account email for sharing instructions
+            self.service_account_email = credentials_info.get("client_email", "")
+            
             # Create credentials
             SCOPES = [
                 'https://www.googleapis.com/auth/drive.readonly',
@@ -75,12 +78,13 @@ class GoogleDriveServiceAccount:
             self.drive_service = build('drive', 'v3', credentials=self.credentials)
             self.sheets_service = build('sheets', 'v4', credentials=self.credentials)
             
-            logger.info("Service account credentials initialized successfully")
+            logger.info(f"Service account credentials initialized successfully: {self.service_account_email}")
         except Exception as e:
             logger.error(f"Failed to initialize service account: {e}")
             self.credentials = None
             self.drive_service = None
             self.sheets_service = None
+            self.service_account_email = ""
     
     def parse_google_sheets(self, sheet_id: str, gid: int = 0) -> List[Dict[str, Any]]:
         """Parse Google Sheets using service account."""
@@ -506,6 +510,37 @@ def map_document_from_row(row: Dict[str, str], index_url: str, user_email: str) 
         "permission_status": "pending" if requires_permission else "not_required"
     }
 
+@app.get("/admin/service-account-info")
+async def get_service_account_info(
+    user: dict = Depends(require_admin_auth)
+) -> Dict[str, Any]:
+    """
+    Get service account information for sharing Google Sheets and Drive documents.
+    Returns the service account email that users need to share documents with.
+    """
+    return {
+        "service_account_email": google_drive_service.service_account_email,
+        "instructions": {
+            "google_sheets": [
+                "1. Open your Google Sheet",
+                "2. Click the 'Share' button in the top right",
+                f"3. Add '{google_drive_service.service_account_email}' as a viewer",
+                "4. Set permission to 'Viewer'",
+                "5. Click 'Send'",
+                "6. Return to the agent and try analyzing the document again"
+            ],
+            "google_drive": [
+                "1. Navigate to the document or folder in Google Drive",
+                "2. Right-click and select 'Share'",
+                f"3. Add '{google_drive_service.service_account_email}' as a viewer",
+                "4. Set permission to 'Viewer'",
+                "5. Click 'Send'",
+                "6. Return to the agent and try again"
+            ]
+        },
+        "note": "You only need to share documents once. The service account will retain access for all future operations."
+    }
+
 @app.post("/admin/check-duplicate")
 async def check_duplicate_document(
     request: Dict[str, str],
@@ -795,6 +830,21 @@ async def analyze_document_index(
             logger.info(f"Successfully parsed {len(rows)} rows using service account from sheet: {sheet_name}")
         except Exception as e:
             logger.warning(f"Service account parsing failed: {e}")
+            # Provide helpful error message with sharing instructions
+            service_email = google_drive_service.service_account_email
+            error_detail = f"Unable to access Google Sheets. Please share the document with the service account.\n\n"
+            error_detail += f"📧 Service Account Email: {service_email}\n\n"
+            error_detail += "📝 How to share:\n"
+            error_detail += "1. Open your Google Sheet\n"
+            error_detail += "2. Click the 'Share' button\n"
+            error_detail += f"3. Add '{service_email}' with 'Viewer' permission\n"
+            error_detail += "4. Click 'Send'\n"
+            error_detail += "5. Try again\n\n"
+            error_detail += f"Error details: {str(e)}"
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=error_detail
+            )
         
         # If no rows found, return error
         if not rows:
