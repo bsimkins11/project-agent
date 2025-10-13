@@ -2,11 +2,15 @@
 
 import os
 import jwt
+import logging
 from typing import Dict, Any, Optional, List
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from google.oauth2 import id_token
+from google.oauth2.credentials import Credentials
 from google.auth.transport import requests
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 ALLOWED_DOMAIN = os.getenv("ALLOWED_DOMAIN", "transparent.partners")
@@ -51,6 +55,44 @@ def get_admin_emails() -> list:
     """Get list of admin emails from environment."""
     admin_emails = os.getenv("ADMIN_EMAILS", "").split(",")
     return [email.strip() for email in admin_emails if email.strip()]
+
+
+async def get_user_oauth_credentials(access_token: Optional[str]) -> Optional[Credentials]:
+    """
+    Extract OAuth credentials from user's access token.
+    
+    This allows the system to access Google Drive/Sheets on behalf of the user,
+    using their own permissions (no manual sharing required).
+    
+    Security benefits:
+    - User-scoped access (principle of least privilege)
+    - Token expiration (~1 hour)
+    - Clear audit trail (actions attributed to user)
+    - Revocable (user can revoke via Google account)
+    
+    Args:
+        access_token: User's OAuth access token with Drive/Sheets scopes
+        
+    Returns:
+        Credentials object if valid, None if not available or invalid
+    """
+    if not access_token:
+        logger.debug("No access token provided for OAuth credentials")
+        return None
+    
+    try:
+        # Create credentials from the access token
+        # The token should have these scopes:
+        # - https://www.googleapis.com/auth/drive.readonly
+        # - https://www.googleapis.com/auth/spreadsheets.readonly
+        credentials = Credentials(token=access_token)
+        
+        logger.info("Successfully created OAuth credentials from access token")
+        return credentials
+        
+    except Exception as e:
+        logger.warning(f"Could not create OAuth credentials: {e}")
+        return None
 
 
 async def require_domain_auth(

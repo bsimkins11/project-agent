@@ -821,29 +821,40 @@ async def analyze_document_index(
         if not gid:
             print(f"Warning: No gid found in URL {index_url}, using default sheet (gid=0)")
         
-        # Parse Google Sheets using service account
+        # NEW: Try to get user OAuth access token from request (optional)
+        # Frontend can pass this to enable seamless access to user's own sheets
+        oauth_access_token = request.get("oauth_access_token")
+        user_credentials = None
+        if oauth_access_token:
+            from packages.shared.clients.auth import get_user_oauth_credentials
+            user_credentials = await get_user_oauth_credentials(oauth_access_token)
+            if user_credentials:
+                logger.info("User OAuth credentials available - will try user access first")
+        
+        # Parse Google Sheets using hybrid approach (OAuth first, then service account)
+        from packages.shared.clients.sheets import HybridSheetsClient
+        hybrid_client = HybridSheetsClient(
+            user_credentials=user_credentials,
+            service_account_credentials=google_drive_service.credentials,
+            service_account_email=google_drive_service.service_account_email
+        )
+        
         rows = []
         sheet_name = "Sheet1"
+        auth_method = "unknown"
+        
         try:
-            logger.info(f"Attempting to parse Google Sheets {sheet_id} with service account")
-            rows, sheet_name = google_drive_service.parse_google_sheets(sheet_id, gid or 0)
-            logger.info(f"Successfully parsed {len(rows)} rows using service account from sheet: {sheet_name}")
+            logger.info(f"Attempting to parse Google Sheets {sheet_id} with hybrid client")
+            rows, sheet_name, auth_method = await hybrid_client.parse_sheet(sheet_id, gid or 0)
+            logger.info(
+                f"Successfully parsed {len(rows)} rows from '{sheet_name}' "
+                f"using {auth_method}"
+            )
         except Exception as e:
-            logger.warning(f"Service account parsing failed: {e}")
-            # Provide helpful error message with sharing instructions
-            service_email = google_drive_service.service_account_email
-            error_detail = f"Unable to access Google Sheets. Please share the document with the service account.\n\n"
-            error_detail += f"📧 Service Account Email: {service_email}\n\n"
-            error_detail += "📝 How to share:\n"
-            error_detail += "1. Open your Google Sheet\n"
-            error_detail += "2. Click the 'Share' button\n"
-            error_detail += f"3. Add '{service_email}' with 'Viewer' permission\n"
-            error_detail += "4. Click 'Send'\n"
-            error_detail += "5. Try again\n\n"
-            error_detail += f"Error details: {str(e)}"
+            logger.error(f"Hybrid client failed: {e}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_detail
+                detail=str(e)  # HybridSheetsClient provides helpful error messages
             )
         
         # If no rows found, return error
@@ -950,15 +961,28 @@ async def analyze_document_index(
         except Exception as e:
             logger.warning(f"Could not update project document count: {e}")
         
+        # Build success message based on auth method used
+        auth_message = ""
+        if auth_method == "user_oauth":
+            auth_message = " ✅ Used your Google account (no sharing needed!)"
+        elif auth_method == "service_account":
+            auth_message = f" ℹ️ Used service account ({google_drive_service.service_account_email})"
+        
         return {
             "success": True,
             "documents_created": len(saved_docs),
             "documents": saved_docs,
-            "message": f"Successfully analyzed Google Sheets and created {len(saved_docs)} document entries for project {project_id}",
+            "message": f"Successfully analyzed Google Sheets and created {len(saved_docs)} document entries for project {project_id}.{auth_message}",
             "sheet_id": sheet_id,
             "sheet_name": sheet_name,
             "project_id": project_id,
-            "client_id": client_id
+            "client_id": client_id,
+            "auth_method": auth_method,
+            "auth_info": {
+                "method_used": auth_method,
+                "service_account_email": google_drive_service.service_account_email,
+                "user_oauth_available": user_credentials is not None
+            }
         }
         
     except HTTPException:
