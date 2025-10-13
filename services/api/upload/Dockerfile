@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir \
     google-cloud-documentai==3.6.0 \
     google-auth==2.23.4 \
     pydantic==2.5.0 \
+    python-dotenv==1.0.0 \
     python-multipart==0.0.6 \
     PyJWT==2.8.0
 
