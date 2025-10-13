@@ -18,8 +18,7 @@ from packages.shared.clients.gcs import GCSClient
 from packages.shared.clients.documentai import DocumentAIClient
 from packages.shared.clients.firestore import FirestoreClient
 from packages.shared.schemas.document import DocumentMetadata
-from packages.shared.schemas.rbac import PermissionType
-from packages.shared.clients.auth import require_permission
+from packages.shared.clients.auth import require_domain_auth
 
 app = FastAPI(
     title="Project Agent Upload API",
@@ -56,10 +55,10 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 @app.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    user: dict = Depends(require_permission(PermissionType.UPLOAD_DOCUMENTS))
+    user: dict = Depends(require_domain_auth)
 ) -> Dict[str, Any]:
     """
-    Upload and process a document. Requires UPLOAD_DOCUMENTS permission.
+    Upload and process a document. POC: All authenticated users can upload.
     Only Project Admins and Super Admins can upload documents.
     
     Args:

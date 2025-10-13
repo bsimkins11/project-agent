@@ -24,6 +24,7 @@ if project_root not in sys.path:
 
 from packages.shared.schemas.document import DocumentMetadata, DocumentStatus, DocType, MediaType
 from packages.shared.schemas.inventory import InventoryRequest, InventoryResponse, InventoryFilters, InventoryItem
+from packages.shared.clients.auth import require_domain_auth as _require_domain_auth
 
 app = FastAPI(
     title="Project Agent Admin API",
@@ -182,10 +183,9 @@ class FirestoreClient:
 
 firestore_client = FirestoreClient()
 
-# Mock authentication dependency
-async def require_admin_auth():
-    """Mock authentication for demo purposes."""
-    return {"user": "admin@transparent.partners", "domain": "transparent.partners"}
+# POC: All authenticated @transparent.partners users have full admin access
+# Portal integration: Will use proper role-based permissions from JWT
+require_admin_auth = _require_domain_auth  # Alias for consistency
 
 # Mock document storage for backwards compatibility
 mock_documents = [

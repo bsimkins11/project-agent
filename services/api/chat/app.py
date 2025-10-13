@@ -10,7 +10,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 from packages.shared.schemas import ChatRequest, ChatResponse, Citation
-from packages.shared.clients.auth import require_domain_auth, get_user_context, filter_documents_by_access
+from packages.shared.clients.auth import require_domain_auth, filter_documents_by_access
 from packages.shared.clients.vector_search import VectorSearchClient
 from packages.shared.clients.firestore import FirestoreClient
 from packages.agent_core import ADKPlanner
@@ -43,11 +43,13 @@ async def chat(
 ) -> ChatResponse:
     """
     Process chat query and return AI-generated answer with citations.
-    Results are filtered by user's RBAC permissions to only include accessible documents.
+    Results are filtered by user's client/project access (POC: single client/project).
+    
+    Portal-ready: User context includes client_ids and project_ids from auth token.
     
     Args:
         request: Chat request with query and filters
-        user: Authenticated user info with RBAC context
+        user: Authenticated user info with client/project context
         
     Returns:
         Chat response with answer and citations from accessible documents only
@@ -55,14 +57,14 @@ async def chat(
     start_time = time.time()
     
     try:
-        # Get user RBAC context
-        user_context = await get_user_context(user.get("email", ""))
+        # Extract user's access context (POC: from simplified auth, Portal: from JWT claims)
+        user_project_ids = user.get("project_ids", [])
+        user_client_ids = user.get("client_ids", [])
         
-        # Add user context to filters so agent planner can limit search
+        # Add user context to filters for data isolation
         enhanced_filters = request.filters or {}
-        enhanced_filters["user_project_ids"] = user_context.get("project_ids", [])
-        enhanced_filters["user_client_ids"] = user_context.get("client_ids", [])
-        enhanced_filters["user_role"] = user_context.get("role", "")
+        enhanced_filters["user_project_ids"] = user_project_ids
+        enhanced_filters["user_client_ids"] = user_client_ids
         
         # Use agent planner to process the query
         user_id = user.get("email", "anonymous")
@@ -74,7 +76,6 @@ async def chat(
         )
         
         # Convert agent snippets to citations
-        # Filter citations to only include documents user has access to
         all_citations = []
         for snippet in agent_result["snippets"]:
             all_citations.append({
@@ -86,8 +87,8 @@ async def chat(
                 "thumbnail": snippet["thumbnail"]
             })
         
-        # Apply RBAC filtering to citations
-        accessible_citations = await filter_documents_by_access(
+        # Apply access filtering to citations
+        accessible_citations = filter_documents_by_access(
             user["email"],
             all_citations
         )

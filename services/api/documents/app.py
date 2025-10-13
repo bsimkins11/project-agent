@@ -38,8 +38,8 @@ async def get_document(
     Users can only access documents in their assigned projects/clients.
     """
     try:
-        # Check if user has access to this document (RBAC)
-        has_access = await check_document_access(user["email"], doc_id)
+        # Check if user has access to this document (POC: full access, Portal: JWT-based)
+        has_access = check_document_access(user["email"], doc_id)
         if not has_access:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -102,8 +102,8 @@ async def get_documents_by_category(
         # Query documents by category
         documents = await firestore.query_documents_by_category(category)
         
-        # Filter documents by user access (RBAC)
-        accessible_docs = await filter_documents_by_access(user["email"], documents)
+        # Filter documents by user access (POC: full access, Portal: JWT-based)
+        accessible_docs = filter_documents_by_access(user["email"], documents)
         
         # Format documents for frontend
         formatted_documents = []

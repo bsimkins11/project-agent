@@ -71,8 +71,8 @@ async def get_inventory(
             sort_order=sort_order
         )
         
-        # Filter documents by user access (RBAC)
-        accessible_docs = await filter_documents_by_access(
+        # Filter documents by user access (POC: single client/project, Portal: from JWT)
+        accessible_docs = filter_documents_by_access(
             user["email"],
             all_results["items"]
         )

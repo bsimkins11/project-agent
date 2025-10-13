@@ -8,10 +8,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
 
-from packages.shared.schemas.rbac import Client, Project, UserProfile, UserRole, PermissionType
-from packages.shared.clients.rbac import RBACClient
-from packages.shared.clients.auth import require_permission, require_role, require_client_access
-from packages.shared.config import settings
+from packages.shared.clients.auth import require_admin_auth
 from google.cloud import firestore
 
 router = APIRouter(prefix="/admin/rbac", tags=["RBAC"])
@@ -24,7 +21,7 @@ rbac_client = RBACClient()
 @router.post("/clients", status_code=status.HTTP_201_CREATED)
 async def create_client(
     client_data: Dict[str, Any],
-    current_user: dict = Depends(require_permission(PermissionType.MANAGE_CLIENTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Create a new client. Requires MANAGE_CLIENTS permission.
@@ -59,7 +56,7 @@ async def create_client(
 @router.get("/clients")
 async def list_clients(
     status_filter: Optional[str] = None,
-    current_user: dict = Depends(require_permission(PermissionType.VIEW_CLIENTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     List clients. Requires VIEW_CLIENTS permission.
@@ -88,7 +85,7 @@ async def list_clients(
 @router.get("/clients/{client_id}")
 async def get_client(
     client_id: str,
-    current_user: dict = Depends(require_permission(PermissionType.VIEW_CLIENTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Get client details. Requires VIEW_CLIENTS permission.
@@ -133,7 +130,7 @@ async def get_client(
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(
     project_data: Dict[str, Any],
-    current_user: dict = Depends(require_permission(PermissionType.MANAGE_PROJECTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Create a new project. Requires MANAGE_PROJECTS permission.
@@ -183,7 +180,7 @@ async def create_project(
 async def list_projects(
     client_id: Optional[str] = None,
     status_filter: Optional[str] = None,
-    current_user: dict = Depends(require_permission(PermissionType.VIEW_PROJECTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     List projects. Requires VIEW_PROJECTS permission.
@@ -216,7 +213,7 @@ async def list_projects(
 @router.get("/projects/{project_id}")
 async def get_project(
     project_id: str,
-    current_user: dict = Depends(require_permission(PermissionType.VIEW_PROJECTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Get project details. Requires VIEW_PROJECTS permission.
@@ -260,7 +257,7 @@ async def get_project(
 async def import_project_documents(
     project_id: str,
     force_reimport: bool = False,
-    current_user: dict = Depends(require_permission(PermissionType.MANAGE_PROJECTS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Import/refresh documents from project's document index URL.
@@ -316,7 +313,7 @@ async def import_project_documents(
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 async def create_user(
     user_data: Dict[str, Any],
-    current_user: dict = Depends(require_permission(PermissionType.MANAGE_CLIENT_USERS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Create a new user. Requires MANAGE_CLIENT_USERS permission.
@@ -364,7 +361,7 @@ async def create_user(
 @router.get("/users/{user_id}/projects")
 async def get_user_projects(
     user_id: str,
-    current_user: dict = Depends(require_permission(PermissionType.VIEW_USERS))
+    current_user: dict = Depends(require_admin_auth)
 ) -> Dict[str, Any]:
     """
     Get all projects accessible by a user. Requires VIEW_USERS permission.

@@ -10,14 +10,9 @@ RUN pip install --no-cache-dir \
     fastapi==0.118.0 \
     uvicorn==0.24.0 \
     google-cloud-firestore==2.13.1 \
-    google-cloud-storage==2.10.0 \
-    google-cloud-pubsub==2.18.4 \
     google-cloud-aiplatform==1.119.0 \
     google-auth==2.23.4 \
     pydantic==2.5.0 \
-    pydantic-settings==2.1.0 \
-    email-validator==2.1.0 \
-    python-json-logger==2.0.7 \
     PyJWT==2.8.0
 
 # Copy packages and application code

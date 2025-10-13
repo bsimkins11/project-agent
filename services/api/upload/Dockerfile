@@ -15,9 +15,6 @@ RUN pip install --no-cache-dir \
     google-cloud-documentai==3.6.0 \
     google-auth==2.23.4 \
     pydantic==2.5.0 \
-    pydantic-settings==2.1.0 \
-    email-validator==2.1.0 \
-    python-json-logger==2.0.7 \
     python-multipart==0.0.6 \
     PyJWT==2.8.0
 
