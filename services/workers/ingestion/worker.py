@@ -14,6 +14,7 @@ from packages.shared.clients.documentai import DocumentAIClient
 from packages.shared.clients.vision import VisionClient
 from packages.shared.clients.vector_search import VectorSearchClient
 from packages.shared.clients.drive import DriveClient
+from packages.shared.clients.document_classifier import DocumentClassifier, ClassificationMethod
 from packages.shared.schemas import DocumentMetadata, DocumentStatus, MediaType, DocType
 
 # Configure logging
@@ -28,6 +29,7 @@ docai = DocumentAIClient()
 vision = VisionClient()
 vector_search = VectorSearchClient()
 drive = DriveClient()
+classifier = DocumentClassifier()
 
 
 class IngestionWorker:
@@ -117,20 +119,40 @@ class IngestionWorker:
             # Run DLP scan
             dlp_result = await self.scan_content(parsed_content)
             
-            # Create document metadata
-            metadata = DocumentMetadata(
-                doc_id=doc_id,
-                media_type=media_type,
-                doc_type=DocType(doc_type),
+            # Enhanced document classification
+            classification = classifier.classify_document(
                 title=title,
+                content=parsed_content,
+                filename=source_uri.split('/')[-1] if '/' in source_uri else source_uri,
+                method=ClassificationMethod.HYBRID
+            )
+            
+            # Create document metadata with enhanced classification
+            metadata = DocumentMetadata(
+                id=doc_id,
+                title=title,
+                type=media_type.value,
+                size=len(doc_content),
                 uri=gcs_uri,
-                source_ref=f"source:{source_uri}",
                 status=DocumentStatus.INDEXED if dlp_result["status"] == "passed" else DocumentStatus.QUARANTINED,
+                upload_date=datetime.utcnow().isoformat(),
+                processing_result={"chunks": len(chunks), "vector_ids": vector_ids},
+                media_type=media_type,
+                doc_type=classification.doc_type,  # Legacy field
+                source_ref=f"source:{source_uri}",
+                source_uri=source_uri,
                 required_fields_ok=True,
                 dlp_scan=dlp_result,
+                thumbnails=[],
                 embeddings={"text": {"count": len(chunks)}},
                 created_by=created_by,
-                topics=job_data.get("tags", [])
+                approved_by=[],
+                topics=job_data.get("tags", []),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                classification=classification,
+                auto_classified=True,
+                classification_reviewed=False
             )
             
             # Save metadata to Firestore
@@ -265,17 +287,27 @@ class IngestionWorker:
         }
     
     def infer_doc_type(self, filename: str) -> str:
-        """Infer document type from filename."""
-        filename_lower = filename.lower()
-        
-        if "sow" in filename_lower or "statement" in filename_lower:
-            return "sow"
-        elif "timeline" in filename_lower or "schedule" in filename_lower:
-            return "timeline"
-        elif "deliverable" in filename_lower or "delivery" in filename_lower:
-            return "deliverable"
-        else:
-            return "misc"
+        """Infer document type from filename using enhanced classifier."""
+        try:
+            classification = classifier.classify_document(
+                title=filename,
+                filename=filename,
+                method=ClassificationMethod.FILENAME
+            )
+            return classification.doc_type.value
+        except Exception as e:
+            logger.warning(f"Enhanced classification failed, using fallback: {e}")
+            # Fallback to original logic
+            filename_lower = filename.lower()
+            
+            if "sow" in filename_lower or "statement" in filename_lower:
+                return "sow"
+            elif "timeline" in filename_lower or "schedule" in filename_lower:
+                return "timeline"
+            elif "deliverable" in filename_lower or "delivery" in filename_lower:
+                return "deliverable"
+            else:
+                return "misc"
     
     async def audit_success(self, job_data: Dict[str, Any], result: str):
         """Log successful job processing."""

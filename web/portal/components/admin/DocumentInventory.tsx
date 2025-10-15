@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { DocumentType, MediaType, DocumentStatus, InventoryItem } from '@/types'
-import { getInventory, assignDocumentCategory, deleteDocument } from '@/lib/api'
+import { getInventory, deleteDocument, requestDocumentAccess, approveDocument, submitForProcessing, processDocument, rejectDocument } from '@/lib/api'
 import toast from 'react-hot-toast'
 import AddDocumentUrl from './AddDocumentUrl'
+import ClassificationModal from './ClassificationModal'
 
 export default function DocumentInventory() {
   const [items, setItems] = useState<InventoryItem[]>([])
@@ -13,6 +14,8 @@ export default function DocumentInventory() {
   const [docToDelete, setDocToDelete] = useState<string | null>(null)
   const [showAddUrl, setShowAddUrl] = useState(false)
   const [docToAddUrl, setDocToAddUrl] = useState<{id: string, title: string} | null>(null)
+  const [showClassificationModal, setShowClassificationModal] = useState(false)
+  const [docToClassify, setDocToClassify] = useState<{id: string, title: string, currentType: string} | null>(null)
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -90,17 +93,6 @@ export default function DocumentInventory() {
     }
   }
 
-  const handleCategoryAssignment = async (docId: string, category: string) => {
-    try {
-      await assignDocumentCategory(docId, category)
-      toast.success(`Document assigned to ${category} category`)
-      // Reload inventory to reflect changes
-      loadInventory()
-    } catch (error) {
-      toast.error('Failed to assign document category')
-      console.error('Category assignment error:', error)
-    }
-  }
 
   const handleDelete = async (docId: string) => {
     try {
@@ -134,6 +126,183 @@ export default function DocumentInventory() {
   const handleAddUrlCancel = () => {
     setShowAddUrl(false)
     setDocToAddUrl(null)
+  }
+
+  const openClassificationModal = (docId: string, docTitle: string, currentType: string) => {
+    setDocToClassify({ id: docId, title: docTitle, currentType })
+    setShowClassificationModal(true)
+  }
+
+  const handleClassificationSuccess = () => {
+    setShowClassificationModal(false)
+    setDocToClassify(null)
+    loadInventory() // Reload to show updated classification
+  }
+
+  const handleClassificationCancel = () => {
+    setShowClassificationModal(false)
+    setDocToClassify(null)
+  }
+
+  const handleRequestAccess = async (docId: string) => {
+    try {
+      await requestDocumentAccess(docId, { share_with_team: true })
+      toast.success('Access request sent to document owner')
+      loadInventory()
+    } catch (error) {
+      toast.error('Failed to request document access')
+      console.error('Request access error:', error)
+    }
+  }
+
+  const handleApprove = async (docId: string) => {
+    try {
+      await approveDocument(docId)
+      toast.success('Document approved successfully')
+      loadInventory()
+    } catch (error) {
+      toast.error('Failed to approve document')
+      console.error('Approval error:', error)
+    }
+  }
+
+  const handleSubmitForProcessing = async (docId: string) => {
+    try {
+      await submitForProcessing(docId)
+      toast.success('Document submitted for processing')
+      loadInventory()
+    } catch (error) {
+      toast.error('Failed to submit document for processing')
+      console.error('Submit processing error:', error)
+    }
+  }
+
+  const handleProcess = async (docId: string) => {
+    try {
+      await processDocument(docId)
+      toast.success('Document processing started')
+      loadInventory()
+    } catch (error) {
+      toast.error('Failed to process document')
+      console.error('Processing error:', error)
+    }
+  }
+
+  const getAvailableActions = (item: InventoryItem) => {
+    const actions = []
+    
+    switch (item.status) {
+      case 'uploaded':
+        actions.push(
+          <button
+            key="approve"
+            onClick={() => handleApprove(item.doc_id)}
+            className="text-green-600 hover:text-green-800 text-xs underline mr-2"
+          >
+            Approve
+          </button>
+        )
+        actions.push(
+          <button
+            key="reject"
+            onClick={() => {
+              const reason = prompt('Reason for rejection:')
+              if (reason) handleReject(item.doc_id, reason)
+            }}
+            className="text-red-600 hover:text-red-800 text-xs underline mr-2"
+          >
+            Reject
+          </button>
+        )
+        break
+        
+      case 'request_access':
+        actions.push(
+          <button
+            key="request-access"
+            onClick={() => handleRequestAccess(item.doc_id)}
+            className="text-blue-600 hover:text-blue-800 text-xs underline mr-2"
+          >
+            Request Access
+          </button>
+        )
+        break
+        
+      case 'access_granted':
+      case 'awaiting_approval':
+        actions.push(
+          <button
+            key="approve"
+            onClick={() => handleApprove(item.doc_id)}
+            className="text-green-600 hover:text-green-800 text-xs underline mr-2"
+          >
+            Approve
+          </button>
+        )
+        break
+        
+      case 'approved':
+        actions.push(
+          <button
+            key="submit-processing"
+            onClick={() => handleSubmitForProcessing(item.doc_id)}
+            className="text-blue-600 hover:text-blue-800 text-xs underline mr-2"
+          >
+            Submit for Processing
+          </button>
+        )
+        break
+        
+      case 'processing_requested':
+        actions.push(
+          <button
+            key="process"
+            onClick={() => handleProcess(item.doc_id)}
+            className="text-purple-600 hover:text-purple-800 text-xs underline mr-2"
+          >
+            Process Now
+          </button>
+        )
+        break
+        
+      case 'processing':
+        actions.push(
+          <span key="processing" className="text-gray-500 text-xs">
+            Processing...
+          </span>
+        )
+        break
+        
+      case 'processed':
+        actions.push(
+          <span key="processed" className="text-green-500 text-xs">
+            ✓ Processed
+          </span>
+        )
+        break
+        
+      case 'quarantined':
+        actions.push(
+          <span key="quarantined" className="text-red-500 text-xs">
+            Quarantined
+          </span>
+        )
+        break
+        
+      case 'failed':
+        actions.push(
+          <button
+            key="retry"
+            onClick={() => handleProcess(item.doc_id)}
+            className="text-orange-600 hover:text-orange-800 text-xs underline mr-2"
+          >
+            Retry
+          </button>
+        )
+        break
+    }
+    
+    return actions
   }
 
   return (
@@ -198,8 +367,11 @@ export default function DocumentInventory() {
               <option value="request_access">Request Access</option>
               <option value="access_requested">Access Requested</option>
               <option value="access_granted">Access Granted</option>
-              <option value="awaiting_processing">Awaiting Processing</option>
-              <option value="document_processed">Document Processed</option>
+              <option value="awaiting_approval">Awaiting Approval</option>
+              <option value="approved">Approved</option>
+              <option value="processing_requested">Processing Requested</option>
+              <option value="processing">Processing</option>
+              <option value="processed">Processed</option>
               <option value="quarantined">Quarantined</option>
               <option value="failed">Failed</option>
             </select>
@@ -279,10 +451,15 @@ export default function DocumentInventory() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        item.status === 'indexed' ? 'bg-green-100 text-green-800' :
                         item.status === 'processed' ? 'bg-green-100 text-green-800' :
-                        item.status === 'access_approved' ? 'bg-blue-100 text-blue-800' :
-                        item.status === 'pending_access' ? 'bg-orange-100 text-orange-800' :
+                        item.status === 'approved' ? 'bg-blue-100 text-blue-800' :
+                        item.status === 'processing' ? 'bg-purple-100 text-purple-800' :
+                        item.status === 'processing_requested' ? 'bg-yellow-100 text-yellow-800' :
+                        item.status === 'awaiting_approval' ? 'bg-orange-100 text-orange-800' :
+                        item.status === 'access_granted' ? 'bg-blue-100 text-blue-800' :
+                        item.status === 'access_requested' ? 'bg-orange-100 text-orange-800' :
+                        item.status === 'request_access' ? 'bg-red-100 text-red-800' :
+                        item.status === 'uploaded' ? 'bg-gray-100 text-gray-800' :
                         item.status === 'quarantined' ? 'bg-red-100 text-red-800' :
                         item.status === 'failed' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
@@ -291,17 +468,23 @@ export default function DocumentInventory() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={item.doc_type || ''}
-                        onChange={(e) => handleCategoryAssignment(item.doc_id, e.target.value)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
-                      >
-                        <option value="">Assign Category</option>
-                        <option value="sow">SOW</option>
-                        <option value="timeline">Timeline</option>
-                        <option value="deliverable">Deliverable</option>
-                        <option value="misc">Misc</option>
-                      </select>
+                      <div className="flex items-center space-x-2">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          item.doc_type === 'sow' ? 'bg-blue-100 text-blue-800' :
+                          item.doc_type === 'timeline' ? 'bg-green-100 text-green-800' :
+                          item.doc_type === 'deliverable' ? 'bg-purple-100 text-purple-800' :
+                          item.doc_type === 'misc' ? 'bg-gray-100 text-gray-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {item.doc_type || 'Unclassified'}
+                        </span>
+                        <button
+                          onClick={() => openClassificationModal(item.doc_id, item.title, item.doc_type)}
+                          className="text-blue-600 hover:text-blue-800 text-xs underline"
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {item.created_by}
@@ -310,28 +493,41 @@ export default function DocumentInventory() {
                       {new Date(item.created_at).toLocaleDateString()}
                     </td>
                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                           {/* Show Add URL button for documents that need URL */}
-                           {!item.thumbnail ? (
+                           {/* Workflow Actions */}
+                           <div className="flex flex-wrap gap-1">
+                             {getAvailableActions(item)}
+                           </div>
+                           
+                           {/* Additional Actions */}
+                           <div className="flex flex-wrap gap-1 mt-1">
+                             {/* Show Add URL button for documents that need URL */}
+                             {!item.thumbnail && (
+                               <button
+                                 onClick={() => openAddUrl(item.doc_id, item.title)}
+                                 className="text-blue-600 hover:text-blue-900 text-xs underline"
+                               >
+                                 Add URL
+                               </button>
+                             )}
+                             
+                             {/* View button for processed documents */}
+                             {item.thumbnail && (
+                               <a
+                                 href={`/documents/${item.doc_id}`}
+                                 className="text-primary-600 hover:text-primary-900 text-xs underline"
+                               >
+                                 View
+                               </a>
+                             )}
+                             
+                             {/* Delete button */}
                              <button
-                               onClick={() => openAddUrl(item.doc_id, item.title)}
-                               className="text-blue-600 hover:text-blue-900"
+                               onClick={() => openDeleteConfirm(item.doc_id)}
+                               className="text-red-600 hover:text-red-900 text-xs underline"
                              >
-                               Add URL
+                               Delete
                              </button>
-                           ) : (
-                             <a
-                               href={`/documents/${item.doc_id}`}
-                               className="text-primary-600 hover:text-primary-900"
-                             >
-                               View
-                             </a>
-                           )}
-                           <button
-                             onClick={() => openDeleteConfirm(item.doc_id)}
-                             className="text-red-600 hover:text-red-900"
-                           >
-                             Delete
-                           </button>
+                           </div>
                          </td>
                   </tr>
                 ))}
@@ -488,6 +684,17 @@ export default function DocumentInventory() {
           docTitle={docToAddUrl.title}
           onSuccess={handleAddUrlSuccess}
           onCancel={handleAddUrlCancel}
+        />
+      )}
+
+      {/* Classification Modal */}
+      {showClassificationModal && docToClassify && (
+        <ClassificationModal
+          docId={docToClassify.id}
+          docTitle={docToClassify.title}
+          currentType={docToClassify.currentType}
+          onSuccess={handleClassificationSuccess}
+          onCancel={handleClassificationCancel}
         />
       )}
     </div>

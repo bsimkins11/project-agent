@@ -37,12 +37,114 @@ class MediaType(str, Enum):
     IMAGE = "image"
 
 
+class DocumentCategory(str, Enum):
+    """High-level document categories."""
+    PROJECT_MANAGEMENT = "project_management"
+    FINANCIAL = "financial"
+    TECHNICAL = "technical"
+    COMMUNICATION = "communication"
+    LEGAL_COMPLIANCE = "legal_compliance"
+    DATA_ANALYSIS = "data_analysis"
+    MEDIA_ASSETS = "media_assets"
+    MISCELLANEOUS = "miscellaneous"
+
+
+class DocumentSubcategory(str, Enum):
+    """Document subcategories for more granular classification."""
+    # Project Management subcategories
+    PLANNING = "planning"
+    EXECUTION = "execution"
+    MONITORING = "monitoring"
+    CLOSURE = "closure"
+    
+    # Financial subcategories
+    BUDGETING = "budgeting"
+    BILLING = "billing"
+    REPORTING = "reporting"
+    AUDIT = "audit"
+    
+    # Technical subcategories
+    DEVELOPMENT = "development"
+    TESTING = "testing"
+    DEPLOYMENT = "deployment"
+    MAINTENANCE = "maintenance"
+    
+    # Communication subcategories
+    INTERNAL = "internal"
+    EXTERNAL = "external"
+    CLIENT = "client"
+    STAKEHOLDER = "stakeholder"
+    
+    # Legal/Compliance subcategories
+    CONTRACTS = "contracts"
+    POLICIES = "policies"
+    REGULATORY = "regulatory"
+    RISK = "risk"
+    
+    # Data/Analysis subcategories
+    COLLECTION = "collection"
+    PROCESSING = "processing"
+    VISUALIZATION = "visualization"
+    INSIGHTS = "insights"
+    
+    # Media/Assets subcategories
+    CREATIVE = "creative"
+    MARKETING = "marketing"
+    TRAINING = "training"
+    REFERENCE = "reference"
+
+
 class DocType(str, Enum):
     """Document type classification."""
-    SOW = "sow"
-    TIMELINE = "timeline"
-    DELIVERABLE = "deliverable"
-    MISC = "misc"
+    # Project Management Documents
+    SOW = "sow"  # Statement of Work
+    TIMELINE = "timeline"  # Project timeline/schedule
+    DELIVERABLE = "deliverable"  # Project deliverables
+    MILESTONE = "milestone"  # Project milestones
+    REQUIREMENTS = "requirements"  # Requirements documents
+    SPECIFICATION = "specification"  # Technical specifications
+    
+    # Financial Documents
+    BUDGET = "budget"  # Budget documents
+    INVOICE = "invoice"  # Invoices and billing
+    EXPENSE = "expense"  # Expense reports
+    FINANCIAL_REPORT = "financial_report"  # Financial reports
+    
+    # Technical Documents
+    TECHNICAL_DOC = "technical_doc"  # Technical documentation
+    API_DOC = "api_doc"  # API documentation
+    USER_GUIDE = "user_guide"  # User guides and manuals
+    ARCHITECTURE = "architecture"  # System architecture docs
+    DESIGN_DOC = "design_doc"  # Design documents
+    
+    # Communication Documents
+    EMAIL = "email"  # Email communications
+    MEETING_NOTES = "meeting_notes"  # Meeting notes/minutes
+    PRESENTATION = "presentation"  # Presentations/slides
+    REPORT = "report"  # General reports
+    
+    # Legal and Compliance
+    CONTRACT = "contract"  # Contracts and agreements
+    LEGAL_DOC = "legal_doc"  # Legal documents
+    POLICY = "policy"  # Policies and procedures
+    COMPLIANCE = "compliance"  # Compliance documents
+    
+    # Data and Analysis
+    DATA_SHEET = "data_sheet"  # Data sheets and spreadsheets
+    ANALYSIS = "analysis"  # Analysis reports
+    RESEARCH = "research"  # Research documents
+    SURVEY = "survey"  # Survey results
+    
+    # Media and Assets
+    IMAGE = "image"  # Images and graphics
+    VIDEO = "video"  # Video files
+    AUDIO = "audio"  # Audio files
+    DIAGRAM = "diagram"  # Diagrams and flowcharts
+    
+    # Miscellaneous
+    MISC = "misc"  # Miscellaneous documents
+    TEMPLATE = "template"  # Document templates
+    FORM = "form"  # Forms and templates
 
 
 class DLPFindings(BaseModel):
@@ -54,6 +156,18 @@ class DLPFindings(BaseModel):
 class EmbeddingInfo(BaseModel):
     """Embedding information."""
     text: Dict[str, int] = Field(..., description="Text embedding counts")
+
+
+class ClassificationInfo(BaseModel):
+    """Document classification information."""
+    doc_type: DocType = Field(..., description="Primary document type")
+    category: DocumentCategory = Field(..., description="Document category")
+    subcategory: Optional[DocumentSubcategory] = Field(None, description="Document subcategory")
+    confidence_score: float = Field(..., description="Classification confidence (0.0-1.0)", ge=0.0, le=1.0)
+    classification_method: str = Field(..., description="Method used for classification")
+    alternative_types: List[Dict[str, Any]] = Field(default_factory=list, description="Alternative classifications with scores")
+    keywords: List[str] = Field(default_factory=list, description="Keywords that influenced classification")
+    last_classified_at: Optional[datetime] = Field(None, description="When classification was last updated")
 
 
 class DocumentMetadata(BaseModel):
@@ -69,7 +183,7 @@ class DocumentMetadata(BaseModel):
     
     # Optional fields for full implementation
     media_type: Optional[MediaType] = Field(None, description="Document media type")
-    doc_type: Optional[DocType] = Field(None, description="Document type classification")
+    doc_type: Optional[DocType] = Field(None, description="Document type classification (legacy)")
     source_ref: Optional[str] = Field(None, description="Source reference (Drive fileId, etc.)")
     source_uri: Optional[str] = Field(None, description="Source URI (original document link, etc.)")
     required_fields_ok: bool = Field(default=True, description="Required fields validation")
@@ -81,6 +195,13 @@ class DocumentMetadata(BaseModel):
     topics: List[str] = Field(default_factory=list, description="Document topics/tags")
     created_at: Optional[datetime] = Field(None, description="Creation timestamp")
     updated_at: Optional[datetime] = Field(None, description="Last update timestamp")
+    
+    # Enhanced classification fields
+    classification: Optional[ClassificationInfo] = Field(None, description="Enhanced document classification")
+    auto_classified: bool = Field(default=False, description="Whether document was automatically classified")
+    classification_reviewed: bool = Field(default=False, description="Whether classification has been manually reviewed")
+    classification_reviewed_by: Optional[str] = Field(None, description="Email of person who reviewed classification")
+    classification_reviewed_at: Optional[datetime] = Field(None, description="When classification was reviewed")
     
     # Permission and access control fields
     permission_requested: bool = Field(default=False, description="Whether permission has been requested")
@@ -120,6 +241,12 @@ class DocumentMetadata(BaseModel):
     client_id: Optional[str] = Field(None, description="Client/Organization ID - for multi-tenant isolation")
     project_id: Optional[str] = Field(None, description="Project ID - documents belong to specific projects")
     visibility: str = Field(default="project", description="Visibility scope: project|client|public")
+    
+    # Team access fields for document sharing
+    team_access_permission: str = Field(default="download", description="Team access level: none|view|download")
+    team_can_download: bool = Field(default=False, description="Whether project team can download original file")
+    gcs_copy_uri: Optional[str] = Field(None, description="GCS URI for team-accessible copy (read-only)")
+    original_file_downloaded: bool = Field(default=False, description="Whether original file copied to GCS for team access")
 
 
 class Document(BaseModel):
