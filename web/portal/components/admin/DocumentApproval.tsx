@@ -83,7 +83,7 @@ export default function DocumentApproval() {
 
   const handleApprove = async (docId: string, docType: string) => {
     try {
-      await approveDocument(docId, docType)
+      await approveDocument(docId, { doc_type: docType })
       toast.success('Document approved successfully')
       loadPendingDocuments()
     } catch (error) {
@@ -94,7 +94,7 @@ export default function DocumentApproval() {
 
   const handleReject = async (docId: string, reason: string) => {
     try {
-      await rejectDocument(docId, reason)
+      await rejectDocument(docId, { reason })
       toast.success('Document rejected')
       setShowRejectDialog(false)
       setRejectionReason('')
