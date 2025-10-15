@@ -188,6 +188,17 @@ export default function DocumentInventory() {
     }
   }
 
+  const handleReject = async (docId: string, reason: string) => {
+    try {
+      await rejectDocument(docId, { reason })
+      toast.success('Document rejected')
+      loadInventory()
+    } catch (error) {
+      toast.error('Failed to reject document')
+      console.error('Rejection error:', error)
+    }
+  }
+
   const getAvailableActions = (item: InventoryItem) => {
     const actions = []
     
