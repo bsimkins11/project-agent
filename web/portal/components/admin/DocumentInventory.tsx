@@ -15,7 +15,7 @@ export default function DocumentInventory() {
   const [showAddUrl, setShowAddUrl] = useState(false)
   const [docToAddUrl, setDocToAddUrl] = useState<{id: string, title: string} | null>(null)
   const [showClassificationModal, setShowClassificationModal] = useState(false)
-  const [docToClassify, setDocToClassify] = useState<{id: string, title: string, currentType: string} | null>(null)
+  const [docToClassify, setDocToClassify] = useState<{id: string, title: string, currentCategory: string} | null>(null)
   const [pagination, setPagination] = useState({
     total: 0,
     page: 1,
@@ -128,8 +128,8 @@ export default function DocumentInventory() {
     setDocToAddUrl(null)
   }
 
-  const openClassificationModal = (docId: string, docTitle: string, currentType: string) => {
-    setDocToClassify({ id: docId, title: docTitle, currentType })
+  const openClassificationModal = (docId: string, docTitle: string, currentCategory: string) => {
+    setDocToClassify({ id: docId, title: docTitle, currentCategory })
     setShowClassificationModal(true)
   }
 
@@ -703,7 +703,7 @@ export default function DocumentInventory() {
         <ClassificationModal
           docId={docToClassify.id}
           docTitle={docToClassify.title}
-          currentType={docToClassify.currentType}
+          currentCategory={docToClassify.currentCategory}
           onSuccess={handleClassificationSuccess}
           onCancel={handleClassificationCancel}
         />
