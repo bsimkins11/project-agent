@@ -390,6 +390,9 @@ export async function assignDocumentCategory(
   subcategory?: string
   message: string
 }> {
+  return apiClient.post<any>(`/api/admin/documents/${docId}/assign-category`, data)
+}
+
 /**
  * Request access to a document
  */
