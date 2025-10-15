@@ -132,35 +132,6 @@ export async function getPendingDocuments(): Promise<{
   return apiClient.get<any>('/api/admin/documents/pending')
 }
 
-/**
- * Approve a document
- */
-export async function approveDocument(docId: string, docType?: string): Promise<{
-  success: boolean
-  doc_id: string
-  status: string
-  message: string
-}> {
-  return apiClient.post<any>(
-    `/api/admin/documents/${docId}/approve`,
-    { doc_type: docType }
-  )
-}
-
-/**
- * Reject a document
- */
-export async function rejectDocument(docId: string, reason?: string): Promise<{
-  success: boolean
-  doc_id: string
-  status: string
-  message: string
-}> {
-  return apiClient.post<any>(
-    `/api/admin/documents/${docId}/reject`,
-    { reason }
-  )
-}
 
 /**
  * Delete a document
