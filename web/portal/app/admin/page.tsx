@@ -12,7 +12,7 @@ import RBACMigration from '@/components/admin/RBACMigration'
 type TabType = 'inventory' | 'ingest' | 'sync' | 'search' | 'clients' | 'projects' | 'migration'
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('clients')
+  const [activeTab, setActiveTab] = useState<TabType>('inventory')
 
   // Set up authentication token for API calls
   useEffect(() => {
