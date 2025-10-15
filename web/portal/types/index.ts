@@ -117,7 +117,7 @@ export interface DocumentChunk {
 export interface InventoryItem {
   doc_id: string  // API returns doc_id, not id
   title: string
-  doc_type: DocumentType
+  doc_type: DocType
   media_type: MediaType
   status: DocumentStatus
   created_by: string
