@@ -88,16 +88,6 @@ export async function syncGoogleDrive(data: {
   )
 }
 
-/**
- * Assign document to a category
- */
-export async function assignDocumentCategory(docId: string, category: string): Promise<{ success: boolean; doc_id: string; category: string; message: string }> {
-  // Use the test endpoint that doesn't require authentication
-  return apiClient.post<{ success: boolean; doc_id: string; category: string; message: string }>(
-    `/api/test-assign-category?doc_id=${docId}&category=${encodeURIComponent(category)}`,
-    {}
-  )
-}
 
 /**
  * Get documents by category
@@ -325,42 +315,6 @@ export async function denyDocumentPermission(docId: string, data?: {
 }> {
   return apiClient.post<any>(
     `/api/admin/documents/${docId}/deny-permission`,
-    data || {}
-  )
-}
-
-/**
- * Request access to a document
- */
-export async function requestDocumentAccess(docId: string, data?: {
-  message?: string
-}): Promise<{
-  success: boolean
-  access_request: {
-    id: string
-    document_id: string
-    document_title: string
-    document_url: string
-    drive_file_id: string
-    requested_by: string
-    requested_at: string
-    status: string
-    message: string
-    access_type: string
-    permissions_requested: string[]
-  }
-  document: {
-    id: string
-    title: string
-    status: string
-    access_requested: boolean
-    access_requested_at: string | null
-  }
-  message: string
-  next_steps: string[]
-}> {
-  return apiClient.post<any>(
-    `/api/admin/documents/${docId}/request-access`,
     data || {}
   )
 }
