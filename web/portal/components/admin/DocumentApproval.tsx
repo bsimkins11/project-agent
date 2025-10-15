@@ -201,7 +201,7 @@ export default function DocumentApproval() {
 
     try {
       const result = await requestDocumentAccess(docToAccessRequest.id, {
-        message: accessRequestMessage
+        notes: accessRequestMessage
       })
       
       toast.success('Access request sent to document owner!')
