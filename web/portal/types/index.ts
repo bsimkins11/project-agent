@@ -1,6 +1,17 @@
 export type DocumentType = 'PDF' | 'DOCX' | 'TXT' | 'MD' | 'HTML'
 export type MediaType = 'text' | 'image'
-export type DocumentStatus = 'uploaded' | 'pending_access' | 'access_approved' | 'processed' | 'indexed' | 'quarantined' | 'failed'
+export type DocumentStatus = 
+  | 'uploaded' 
+  | 'request_access' 
+  | 'access_requested' 
+  | 'access_granted' 
+  | 'awaiting_approval' 
+  | 'approved' 
+  | 'processing_requested' 
+  | 'processing' 
+  | 'processed' 
+  | 'quarantined' 
+  | 'failed'
 
 // Enhanced classification types
 export type DocType = 
